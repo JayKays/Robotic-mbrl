@@ -51,3 +51,27 @@ def pusher(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
     act_cost = 0.1 * (act ** 2).sum(axis=1)
 
     return -(obs_cost + act_cost).view(-1, 1)
+
+def HFMC(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
+    #for 5 states
+    #assert len(next_obs.shape) == len(act.shape) == 2
+    #reward_ctrl = -0.1 * act.square().sum(dim=1)
+    Fd = torch.tensor([3]).to(next_obs.device)
+    F_reward = next_obs[:, :1] - Fd
+    F_reward = torch.exp(-torch.sum(3*F_reward ** 2, dim=1))
+    x_reward = torch.exp(-torch.sum((300*next_obs[:,3:4] ** 2), dim=1))#np.exp(-np.square(next_obs[3]))
+    y_reward = torch.exp(-torch.sum((300*next_obs[:,4:5] ** 2), dim=1))#np.exp(-np.square(self.state[4]))
+    #print(reward.size())
+    reward = 0.5*F_reward + 0.4*x_reward + 0.1*y_reward
+
+    #print(reward.view(-1, 1))
+    return (reward).view(-1, 1)
+
+
+def HFMC1(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
+    Fd= torch.tensor([3]).to(next_obs.device)
+    f_z = next_obs[:, 0]
+    print("Fd = ", Fd, "fz = ", f_z)
+    delta_f = (Fd - f_z).abs().sum(axis=1)
+    sq_error = torch.square(delta_f)
+    return -(sq_error).view(-1, 1)
