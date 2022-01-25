@@ -26,20 +26,21 @@ class BNN(Ensemble):
         num_layers: int = 4,
         ensemble_size: int = 1,
         hid_size: int = 200,
-        freeze: bool = False,
+        deterministic: bool = False,
+        prior_sigma1: float = 1,
+        prior_sigma2: float = 0.1,
+        prior_pi: float = 0.8,
         propagation_method: Optional[str] = None,
-        activation_fn_cfg: Optional[Union[Dict, omegaconf.DictConfig]] = None,
-        prior_sigma: Tuple = (1, 0.1),
-        prior_pi: float = 0.8
+        activation_fn_cfg: Optional[Union[Dict, omegaconf.DictConfig]] = None
     ):
         super().__init__(
-            ensemble_size, device, propagation_method, deterministic=True
+            ensemble_size, device, propagation_method, deterministic=deterministic
         )
 
         self.in_size = in_size
         self.out_size = out_size
-        self.prior_sigma1 = prior_sigma[0]
-        self.prior_sigma2 = prior_sigma[1]
+        self.prior_sigma1 = prior_sigma1
+        self.prior_sigma2 = prior_sigma2
         self.prior_pi = prior_pi
 
         def create_activation():
@@ -75,7 +76,7 @@ class BNN(Ensemble):
         self.hidden_layers = nn.Sequential(*hidden_layers)
         self.output_layer = create_linear_layer(hid_size, out_size)
 
-        self.freeze = freeze
+        self.freeze = deterministic
         if self.freeze: self.freeze_model()
         
         #Num_batches must be updated externally before training to use KL reweighting for Mini-Batch Optimization
@@ -85,7 +86,7 @@ class BNN(Ensemble):
         self.to(self.device)
         
 
-        self.elite_models: List[int] = None #Currently not supperted by Linear Layer
+        self.elite_models: List[int] = None
 
 
     def _maybe_toggle_layers_use_only_elite(self, only_elite: bool):
@@ -103,6 +104,9 @@ class BNN(Ensemble):
         self, x: torch.Tensor, only_elite: bool = False, **_kwargs
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         self._maybe_toggle_layers_use_only_elite(only_elite)
+
+        if self.freeze:
+            self.freeze_model()
 
         x = self.hidden_layers(x)
         output = self.output_layer(x)
@@ -244,7 +248,7 @@ class BNN(Ensemble):
 
         return kl_divergence
 
-    def get_complexity_cos(self):
+    def get_complexity_cost(self):
         '''
         Calculates the complexity cost for the current minibatch,
         if num_batches is set before training.
@@ -288,13 +292,13 @@ class BNN(Ensemble):
         """
 
         if self.num_batches is not None:
-            complexity_cost_weight = self.get_complexity_cos()
+            complexity_cost_weight = self.get_complexity_cost()
             self.batch_idx += 1
             self.batch_idx = self.batch_idx % self.num_batches
 
         loss = 0
         complexity_cost_weight *= 1/inputs.shape[-2]
-        for i in range(sample_nbr):
+        for _ in range(sample_nbr):
             loss += self._mse_loss(inputs, targets)
             loss += self.nn_kl_divergence() * complexity_cost_weight
 
@@ -340,6 +344,54 @@ class BNN(Ensemble):
         # rng causes segmentation fault, see https://github.com/pytorch/pytorch/issues/44714
         return torch.randperm(batch_size, device=self.device)
 
+    def sample_1d(
+        self,
+        model_input: torch.Tensor,
+        model_state: Dict[str, torch.Tensor],
+        deterministic: bool = False,
+        rng: Optional[torch.Generator] = None,
+    ) -> Tuple[torch.Tensor, Optional[Dict[str, torch.Tensor]]]:
+        """Samples an output from the model using .
+
+        This method will be used by :class:`ModelEnv` to simulate a transition of the form.
+            outputs_t+1, s_t+1 = sample(model_input_t, s_t), where
+
+            - model_input_t: observation and action at time t, concatenated across axis=1.
+            - s_t: model state at time t (as returned by :meth:`reset()` or :meth:`sample()`.
+            - outputs_t+1: observation and reward at time t+1, concatenated across axis=1.
+
+        The default implementation returns `s_t+1=s_t`.
+
+        Args:
+            model_input (tensor): the observation and action at.
+            model_state (tensor): the model state st. Must contain a key
+                "propagation_indices" to use for uncertainty propagation.
+            deterministic (bool): if ``True``, the model returns a deterministic
+                "sample" (e.g., the mean prediction). Defaults to ``False``.
+            rng (`torch.Generator`, optional): an optional random number generator
+                to use.
+
+        Returns:
+            (tuple): predicted observation, rewards, terminal indicator and model
+                state dictionary. Everything but the observation is optional, and can
+                be returned with value ``None``.
+        """
+        if deterministic or self.freeze:
+            self.freeze_model()
+            pred = self.forward(
+                model_input, rng=rng, propagation_indices=model_state["propagation_indices"]
+            )
+            self.unfreeze_model()
+            return pred, model_state
+        assert rng is not None
+        pred = self.forward(
+            model_input, rng=rng, propagation_indices=model_state["propagation_indices"]
+        )
+        return pred, model_state
+
+
+
+
     def set_elite(self, elite_indices: Sequence[int]):
         #Elite models not supported by bayesian linear layer currently, 
         #So this will allways keep elite_models = None
@@ -353,17 +405,17 @@ class BNN(Ensemble):
         """
         for module in self.modules():
             if isinstance(module, (BayesianLinearEnsembleLayer)):
-                module.freeze = True
+                module.freeze()
 
         self.freeze = True
     
     def unfreeze_model(self):
         """
-        Unfreezes the model by letting it draw its weights with uncertanity from their correspondent distributions
+        Unfreezes the model by letting it draw its weights with uncertanity from their corresponding distributions
         """
         for module in self.modules():
             if isinstance(module, (BayesianLinearEnsembleLayer)):
-                module.freeze = False
+                module.unfreeze()
 
         self.freeze = False
 

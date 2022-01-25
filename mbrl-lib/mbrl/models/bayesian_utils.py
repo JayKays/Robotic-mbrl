@@ -1,8 +1,9 @@
 
-import torch
-from torch import nn as nn
+from typing import List, Sequence, Tuple, Union, Optional
 
 import numpy as np
+import torch
+from torch import nn as nn
 
 class BayesianLinearEnsembleLayer(nn.Module):
     """
@@ -26,31 +27,34 @@ class BayesianLinearEnsembleLayer(nn.Module):
         delta(float): The delta value in moped init, not used if moped = False 
     """
     def __init__(self,
-                 num_members,
-                 in_features,
-                 out_features,
-                 bias=True,
-                 prior_sigma_1 = 0.9,
-                 prior_sigma_2 = 0.001,
-                 prior_pi = 0.7,
-                 posterior_mu_init = 0,
-                 posterior_rho_init = -7.0,
-                 freeze = False,
-                 prior_dist = None,
-                 truncated_init = True,
-                 delta = 0.1,
-                 moped = False):
+                 num_members: int,
+                 in_features: int,
+                 out_features: int,
+                 bias: bool =True,
+                 prior_sigma_1: float = 0.9,
+                 prior_sigma_2: float = 0.001,
+                 prior_pi: float = 0.7,
+                 posterior_mu_init: Union[float, int] = 0,
+                 posterior_rho_init: Union[float, int] = -7.0,
+                 freeze: bool = False,
+                 prior_dist: Optional[torch.distributions.distribution.Distribution] = None,
+                 truncated_init: bool = True
+                 ):
+
         super().__init__()
 
         #main layer parameters
         self.num_members = num_members
         self.in_features = in_features
         self.out_features = out_features
-        self.bias = bias
+        self.use_bias = bias
         self.freeze = freeze
 
         self.posterior_mu_init = posterior_mu_init
         self.posterior_rho_init = posterior_rho_init
+
+        self.elite_models: List[int] = None
+        self.use_only_elite = False
 
         #parameters for the scale mixture gaussian prior
         self.prior_sigma_1 = prior_sigma_1
@@ -62,29 +66,30 @@ class BayesianLinearEnsembleLayer(nn.Module):
         init_std = 1 / (2*np.sqrt(self.in_features))
         init_std = 0.1
         mu_init_max, mu_init_min = posterior_mu_init + 2*init_std, posterior_mu_init-2*init_std
-        rho_init_max, rho_init_min = posterior_rho_init + 2*init_std, posterior_rho_init-2*init_std
 
         # Variational parameters and sampler for weights and biases
         if truncated_init:
             self.weight_mu = nn.Parameter(torch.Tensor(num_members, in_features, out_features).normal_(posterior_mu_init, init_std).clamp(mu_init_min, mu_init_max))
-            self.bias_mu = nn.Parameter(torch.Tensor(num_members, 1, out_features).normal_(posterior_mu_init, init_std).clamp(mu_init_min, mu_init_max))
+            self.weight_rho = nn.Parameter(torch.Tensor(num_members, in_features, out_features).normal_(posterior_rho_init, init_std))
+            if self.use_bias:
+                self.bias_mu = nn.Parameter(torch.Tensor(num_members, 1, out_features).normal_(posterior_mu_init, init_std).clamp(mu_init_min, mu_init_max))
+                self.bias_rho = nn.Parameter(torch.Tensor(num_members, 1, out_features).normal_(posterior_rho_init, init_std))
         else:
             self.weight_mu = nn.Parameter(torch.Tensor(num_members, in_features, out_features).normal_(posterior_mu_init, init_std))
-            self.bias_mu = nn.Parameter(torch.Tensor(num_members, 1, out_features).normal_(posterior_mu_init, init_std))
-
-        if moped:
-            self.weight_rho = nn.Parameter(torch.log(torch.expm1(delta * torch.abs(self.weight_mu.data))))
-            self.bias_rho = nn.Parameter(torch.log(torch.expm1(delta * torch.abs(self.bias_mu.data))))
-        else:
             self.weight_rho = nn.Parameter(torch.Tensor(num_members, in_features, out_features).normal_(posterior_rho_init, init_std))
-            self.bias_rho = nn.Parameter(torch.Tensor(num_members, 1, out_features).normal_(posterior_rho_init, init_std))
+            if self.use_bias:
+                self.bias_mu = nn.Parameter(torch.Tensor(num_members, 1, out_features).normal_(posterior_mu_init, init_std))
+                self.bias_rho = nn.Parameter(torch.Tensor(num_members, 1, out_features).normal_(posterior_rho_init, init_std))
+
 
         self.weight_sampler = TrainableRandomDistribution(self.weight_mu, self.weight_rho)
-        self.bias_sampler = TrainableRandomDistribution(self.bias_mu, self.bias_rho)
+        
+        if self.use_bias:
+            self.bias_sampler = TrainableRandomDistribution(self.bias_mu, self.bias_rho)
+            self.bias_prior_dist = PriorWeightDistribution(self.prior_pi, self.prior_sigma_1, self.prior_sigma_2, dist = self.prior_dist)
 
         # Prior distributions
         self.weight_prior_dist = PriorWeightDistribution(self.prior_pi, self.prior_sigma_1, self.prior_sigma_2, dist = self.prior_dist)
-        self.bias_prior_dist = PriorWeightDistribution(self.prior_pi, self.prior_sigma_1, self.prior_sigma_2, dist = self.prior_dist)
         self.log_prior = 0
         self.log_variational_posterior = 0
 
@@ -103,15 +108,20 @@ class BayesianLinearEnsembleLayer(nn.Module):
 
         w = self.weight_sampler.sample()
 
-        if self.bias:
+
+        if self.use_bias:
             b = self.bias_sampler.sample()
             b_log_posterior = self.bias_sampler.log_posterior()
             b_log_prior = self.bias_prior_dist.log_prior(b)
 
         else:
-            b = torch.zeros((self.out_features))
+            b = torch.zeros(self.bias_sampler.mu.shape)
             b_log_posterior = 0
             b_log_prior = 0
+
+        if self.use_only_elite:
+            w = w[self.elite_models,...]
+            b = b[self.elite_models,...]
 
         # Get the complexity cost
         self.log_variational_posterior = self.weight_sampler.log_posterior() + b_log_posterior
@@ -129,11 +139,31 @@ class BayesianLinearEnsembleLayer(nn.Module):
         returns:
             torch.tensor with shape [num_members, out_features]
         '''
+        if self.use_only_elite:
+            xw = x.matmul(self.weight_sampler.mu[self.elite_models,...])
 
-        if self.bias:
-            return x.matmul(self.weight_sampler.mu) + self.bias_sampler.mu
+            if self.use_bias:
+                xw += self.bias_sampler.mu[self.elite_models,...]
+
         else:
-            return x.matmul(self.weight_sampler.mu)
+            xw = x.matmul(self.weight_sampler.mu)
+
+            if self.use_bias:
+                xw += self.bias_sampler.mu
+        
+        return xw
+    
+    def freeze(self):
+        self.freeze = True
+    
+    def unfreeze(self):
+        self.freeze = False
+
+    def set_elite(self, elite_models: Sequence[int]):
+        self.elite_models = list(elite_models)
+
+    def toggle_use_only_elite(self):
+        self.use_only_elite = not self.use_only_elite
 
 class TrainableRandomDistribution(nn.Module):
     '''
@@ -141,7 +171,7 @@ class TrainableRandomDistribution(nn.Module):
     Calculates the variational posterior part of the complexity part of the loss
     '''
 
-    def __init__(self, mu, rho):
+    def __init__(self, mu: Union[float, int], rho: Union[float, int]):
         super().__init__()
 
         self.mu = nn.Parameter(mu)
@@ -165,6 +195,15 @@ class TrainableRandomDistribution(nn.Module):
         self.w = self.mu + self.sigma * self.eps_w
         return self.w
 
+    def sample_elites(self, elite_models):
+
+        self.eps_w.data.normal_()
+        self.sigma[elite_models,...] = torch.log1p(torch.exp(self.rho[elite_models,...]))
+        self.w[elite_models,...] = self.mu[elite_models,...] + self.sigma[elite_models,...] * self.eps_w[elite_models,...]
+        
+        return self.w[elite_models,...]
+
+    
     def log_posterior(self, w = None):
 
         """
@@ -188,10 +227,10 @@ class PriorWeightDistribution(nn.Module):
     '''
 
     def __init__(self,
-                 pi=1,
-                 sigma1=0.1,
-                 sigma2=0.001,
-                 dist=None):
+                 pi: Union[float, int] = 1,
+                 sigma1: Union[float, int] = 0.1,
+                 sigma2: Union[float, int] = 0.001,
+                 dist: torch.distributions.distribution.Distribution = None):
         super().__init__()
 
 
