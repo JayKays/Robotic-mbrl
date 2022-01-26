@@ -1,4 +1,5 @@
-_target_: mbrl.models.BNN
+# @package _group_
+_target_: mbrl.models.bayesian_mlp.BNN
 device: ${device}
 num_layers: 4
 in_size: ???
@@ -8,7 +9,7 @@ hid_size: 200
 deterministic: false
 propagation_method: random_model
 prior_sigma1: 1
-priro_sigma2: 0.1
+prior_sigma2: 0.1
 prior_pi: 0.8
 activation_fn_cfg:
   _target_: torch.nn.SiLU

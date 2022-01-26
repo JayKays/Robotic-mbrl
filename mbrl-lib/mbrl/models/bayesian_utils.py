@@ -48,7 +48,7 @@ class BayesianLinearEnsembleLayer(nn.Module):
         self.in_features = in_features
         self.out_features = out_features
         self.use_bias = bias
-        self.freeze = freeze
+        self.frozen = freeze
 
         self.posterior_mu_init = posterior_mu_init
         self.posterior_rho_init = posterior_rho_init
@@ -103,7 +103,7 @@ class BayesianLinearEnsembleLayer(nn.Module):
         '''
         
         #if the model is frozen, return deterministic forward pass
-        if self.freeze:
+        if self.frozen:
             return self.forward_frozen(x)
 
         w = self.weight_sampler.sample()
@@ -154,10 +154,10 @@ class BayesianLinearEnsembleLayer(nn.Module):
         return xw
     
     def freeze(self):
-        self.freeze = True
+        self.frozen = True
     
     def unfreeze(self):
-        self.freeze = False
+        self.frozen = False
 
     def set_elite(self, elite_models: Sequence[int]):
         self.elite_models = list(elite_models)

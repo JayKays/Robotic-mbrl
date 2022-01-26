@@ -124,6 +124,9 @@ def train(
             if debug_mode:
                 print(f"Step {env_steps}: Reward {reward:.3f}.")
 
+            if cfg.render and hasattr(env, "render"):
+                env.render()
+
         if logger is not None:
             logger.log_data(
                 mbrl.constants.RESULTS_LOG_NAME,
