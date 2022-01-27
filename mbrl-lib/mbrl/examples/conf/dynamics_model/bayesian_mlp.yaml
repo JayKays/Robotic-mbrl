@@ -1,7 +1,7 @@
 # @package _group_
-_target_: mbrl.models.BNN
+_target_: mbrl.models.bayesian_mlp.BNN
 device: ${device}
-num_layers: 4
+num_layers: 3
 in_size: ???
 out_size: ???
 ensemble_size: 1

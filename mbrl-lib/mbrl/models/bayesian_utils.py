@@ -30,7 +30,7 @@ class BayesianLinearEnsembleLayer(nn.Module):
                  num_members: int,
                  in_features: int,
                  out_features: int,
-                 bias: bool =True,
+                 bias: bool = True,
                  prior_sigma_1: float = 0.9,
                  prior_sigma_2: float = 0.001,
                  prior_pi: float = 0.7,

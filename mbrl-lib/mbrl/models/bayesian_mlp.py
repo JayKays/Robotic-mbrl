@@ -192,7 +192,9 @@ class BNN(Ensemble):
 
     def _mse_loss(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         assert model_in.ndim == target.ndim
-        
+        if model_in.ndim == 2:  # add model dimension
+            model_in = model_in.unsqueeze(0)
+            target = target.unsqueeze(0)
         pred_mean = self.forward(model_in, use_propagation=False)
         return F.mse_loss(pred_mean, target, reduction="none").sum((1, 2)).sum()
 
@@ -390,7 +392,9 @@ class BNN(Ensemble):
         return pred, model_state
 
 
-
+    def set_batch_count(self, num_batches):
+        self.num_batches = num_batches
+        self.batch_idx = 0
 
     def set_elite(self, elite_indices: Sequence[int]):
         #Elite models not supported by bayesian linear layer currently, 
