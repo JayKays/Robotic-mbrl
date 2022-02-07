@@ -3,7 +3,7 @@ import time
 import mujoco_py
 import numpy as np
 import gym
-from gym import logger, spaces
+from gym import spaces
 # sys.path.append("/home/akhil/PhD/RoL/mujoco_panda-master")
 from mujoco_panda import PandaArm
 from mujoco_panda.utils.viewer_utils import render_frame
@@ -14,7 +14,8 @@ from mujoco_panda.controllers.torque_based_controllers import VIC_config as cfg
 import time
 import random
 import quaternion
-import matplotlib.pyplot as plt
+from matplotlib import pyplot as plt
+# import matplotlib.pyplot as plt
 
 
 class VIC_Env(gym.Env):
@@ -65,10 +66,12 @@ class VIC_Env(gym.Env):
         self.goal_ori = np.asarray(self.robot.ee_pose()[1])
         self.x_d_ddot, self.x_d_dot, self.x_d = func.generate_desired_trajectory_tc(self.robot, self.max_num_it, cfg.T,
                                                                                     move_in_x=True)
-        plt.plot(self.x_d[0, :])
+        plt.plot(self.x_d[0, :]) 
+        plt.plot(self.x_d[1, :])
         plt.show()
 
         ctrl_config = {
+            'fc': cfg.PUBLISH_RATE,
             'M': cfg.M,
             'K': cfg.K,
             'B': cfg.B,
@@ -106,45 +109,27 @@ class VIC_Env(gym.Env):
              obs_dict["vel"][2] - self.x_d_dot[2, self.i]])
 
     def step(self, action):
-        #i = VIC_env.controller.timestep / 10
-
-        print("step taken ", self.i, VIC_env.controller.timestep)
         self.controller.set_goal(action, self.x_d[:, self.i], self.goal_ori, self.x_d_dot[:, self.i], \
                                  self.x_d_ddot[:, self.i], goal_force=self.f_d[:, self.i])
-        print("step taken afetr ", self.i, VIC_env.controller.timestep)
-        # while(VIC_env.controller.timestep/10 -1 < self.i):
-        # self.robot.render()
-        # print()
-        # i = VIC_env.controller.timestep / 10
-
-        #self.state = self.get_obs()
-        #state_dict = self.controller.state_dict
-        #demo_data = self.controller.demo_data_dict
-        #self.Fz_history[self.i] = self.state[0]
+        self.controller._send_cmd()
+        self.state = self.get_obs()
+        self.Fz_history[self.i] = self.state[0]
         self.i += 1
-        # time.sleep(1/100)
-
-        #print("step taken ", self.i, VIC_env.controller.timestep)
-        print("torque ", self.controller._cmd)
-        print("pose ", self.x_d[:, self.i-1] - self.robot.ee_pose()[0])
-        print("smoothed FT reading: ", self.robot.get_ft_reading(pr=True)[0])
+        self.controller.get_robot_states()
+        self.state = self.get_obs()
+        #print("torque ", self.controller._cmd)
+        #print("pose ", self.x_d[:, self.i-1] - self.robot.ee_pose()[0])
+        #print("smoothed FT reading: ", self.robot.get_ft_reading(pr=True)[0])
+        return self.state
 
     def reset(self):
+        print("resetting the controller")
+        self.controller.reset()
         print("resetting env")
         index = 0  # np.random.randint(0, (0.9 * self.max_num_it))
         self.iteration = index
         self.lam = np.zeros(18)
-        self.move_to_start(cfg.cartboard, self.sim)
-        time.sleep(3)
-        # self.initialize_robot_pose()
-        # set desired pose/force trajectory
-        # f_d = np.concatenate([self.robot.endpoint_effort()['force'], self.robot.endpoint_effort()['torque']])
-        # f_d[2] = 5
-        # self.f_d = np.transpose(np.tile(f_d, (self.max_num_it, 1)))
-        # self.Rot_d = self.robot.endpoint_pose()['orientation_R']
-        # self.f_d = func.generate_Fd_constant(self.max_num_it, cfg.Fd)  # func.generate_Fd_steep(self.max_num_it,cfg.T,cfg.Fd)
-        # self.goal_ori = self.robot.endpoint_pose()['orientation']  # goal orientation = current (initial) orientation [remains the same the entire duration of the run]
-        # self.x_d_ddot, self.x_d_dot, self.p_d = func.generate_desired_trajectory(self.robot, self.max_num_it, cfg.T, self.sim, move_in_x=True)
+        self.robot.hard_set_joint_positions(self.init_jpos)
         self.time_per_iteration = np.zeros(self.max_num_it)
         self.x_history = np.zeros((6, self.max_num_it))
         self.x_dot_history = np.zeros((6, self.max_num_it))
@@ -156,27 +141,11 @@ class VIC_Env(gym.Env):
         self.Kp_pos_hist = np.zeros(self.max_num_it)
         self.Kp_z_hist = np.zeros(self.max_num_it)
         self.Kd_z_hist = np.zeros(self.max_num_it)
-        '''
-        self.Rot_e, self.p, self.x, self.x_dot, self.x_history, self.x_dot_history, self.delta_x, self.jacobian, self.robot_inertia, \
-        self.Fz, self.F_ext, self.F_ext_2D, self.coriolis_comp = self.robot.get_VIC_states( self.iteration, self.time_per_iteration, \
-                                                    self.p_d[:, self.iteration], self.goal_ori, self.x_history, self.x_dot_history, self.sim)
-        self.Fz_offset = 0# self.Fz
-        self.p_z_init = self.p[2]
-        '''
+
         # array with data meant for plotting
         self.data_for_plotting = np.zeros((17, self.max_num_it))
-        self.state_dict = self.robot.get_full_state_space()
-        '''
-        self.state = np.array([self.state_dict["Fz"]-self.Fz_offset, self.state_dict["z"]-self.p_z_init, self.state_dict["Vz"], \
-                        self.state_dict["x"]-self.p_d[0, self.iteration], self.state_dict["y"]-self.p_d[1, self.iteration], \
-                        self.state_dict["Fx"], self.state_dict["Fy"], self.state_dict["Tx"], self.state_dict["Ty"], \
-                        self.state_dict["Tz"], self.state_dict["Vx"], self.state_dict["Vy"], self.state_dict["Ax"], \
-                        self.state_dict["Ay"], self.state_dict["Az"]])'''
-        self.state = np.array(
-            [self.state_dict["Fz"] - self.Fz_offset, self.state_dict["z"] - self.p_z_init, self.state_dict["Vz"], \
-             self.state_dict["x"] - self.p_d[0, self.iteration], self.state_dict["y"] - self.p_d[1, self.iteration]])
         self.steps_beyond_done = None
-        return self.state
+        return self.get_obs()
 
 
 if __name__ == "__main__":
@@ -190,9 +159,10 @@ if __name__ == "__main__":
     i = 0
     count = 0
     Data = []
+    VIC_env.reset()
     while True:
         # get current robot end-effector pose
-        timestep = VIC_env.controller.timestep / 10
+        timestep = VIC_env.controller.timestep / 1
         #print("helloooo",i, timestep)
         robot_pos, robot_ori = VIC_env.robot.ee_pose()
         render_frame(VIC_env.robot.viewer, robot_pos, robot_ori)
@@ -202,10 +172,9 @@ if __name__ == "__main__":
             # render controller target and current ee pose using frames
             action = np.array([0.0001, 0.00001])  # np.random.uniform(1.e-6, 0.01, 2)
             s = VIC_env.step(action)
+            #print(s)
             i += 1
-            if i == 499:
-                print("trajectory completed")
-                np.save("Demo", VIC_env.controller.demo_data)
+            if i == 4999:
                 break
         VIC_env.robot.render()  # render the visualisation
 

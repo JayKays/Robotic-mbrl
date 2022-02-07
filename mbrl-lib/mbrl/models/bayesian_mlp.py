@@ -8,6 +8,7 @@ import torch
 from torch import nn as nn
 from torch.nn import functional as F
 
+import mbrl.util.math
 from mbrl.models.model import Ensemble
 from .bayesian_utils import BayesianLinearEnsembleLayer
 
@@ -27,6 +28,7 @@ class BNN(Ensemble):
         ensemble_size: int = 1,
         hid_size: int = 200,
         deterministic: bool = False,
+        output_gauss: bool = False,
         prior_sigma1: float = 1,
         prior_sigma2: float = 0.1,
         prior_pi: float = 0.8,
@@ -42,6 +44,9 @@ class BNN(Ensemble):
         self.prior_sigma1 = prior_sigma1
         self.prior_sigma2 = prior_sigma2
         self.prior_pi = prior_pi
+
+        #No need for prob. dist. output if model is deterministic
+        self.prob_output = output_gauss and not deterministic
 
         def create_activation():
             if activation_fn_cfg is None:
@@ -74,7 +79,16 @@ class BNN(Ensemble):
                 )
             )
         self.hidden_layers = nn.Sequential(*hidden_layers)
-        self.output_layer = create_linear_layer(hid_size, out_size)
+        if self.prob_output:
+            self.output_layer = create_linear_layer(hid_size, 2*out_size)
+            self.min_logvar = nn.Parameter(
+                -10 * torch.ones(1, out_size), requires_grad=False
+            )
+            self.max_logvar = nn.Parameter(
+                0.5 * torch.ones(1, out_size), requires_grad=False
+            )
+        else:
+            self.output_layer = create_linear_layer(hid_size, out_size)
 
         self.freeze = deterministic
         if self.freeze: self.freeze_model()
@@ -82,6 +96,8 @@ class BNN(Ensemble):
         #Num_batches must be updated externally before training to use KL reweighting for Mini-Batch Optimization
         self.num_batches = None
         self.batch_idx  = 0
+        self.kl_reduction_factor = 1/self.num_members
+        # self.kl_reduction_factor = 1
 
         self.to(self.device)
         
@@ -110,11 +126,18 @@ class BNN(Ensemble):
 
         x = self.hidden_layers(x)
         output = self.output_layer(x)
-
         self._maybe_toggle_layers_use_only_elite(only_elite)
 
-        return output
+        if not self.prob_output:
+            return output, None
+        else:
+            mean = output[...,:self.out_size]
+            log_var = output[...,self.out_size:]
+            log_var = self.max_logvar - F.softplus(self.max_logvar - log_var)
+            log_var = self.min_logvar + F.softplus(log_var - self.min_logvar)
 
+            return mean, log_var
+    
     def _forward_from_indices(
         self, x: torch.Tensor, model_shuffle_indices: torch.Tensor
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
@@ -127,12 +150,16 @@ class BNN(Ensemble):
             num_models, batch_size // num_models, -1
         )
 
-        pred = self._default_forward(shuffled_x, only_elite=True)
+        pred, log_var = self._default_forward(shuffled_x, only_elite=True)
         # note that pred is shuffled
         pred = pred.view(batch_size, -1)
         pred[model_shuffle_indices] = pred.clone()  # invert the shuffle
 
-        return pred
+        if log_var is not None:
+            log_var = log_var.view(batch_size, -1)
+            log_var[model_shuffle_indices] = log_var.clone()  # invert the shuffle
+
+        return pred, log_var
 
     def _forward_ensemble(
         self,
@@ -141,10 +168,11 @@ class BNN(Ensemble):
         propagation_indices: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         if self.propagation_method is None:
-            mean = self._default_forward(x, only_elite=False)
+            mean, log_var = self._default_forward(x, only_elite=False)
             if self.num_members == 1:
                 mean = mean[0]
-            return mean
+                log_var = log_var[0] if log_var is not None else None
+            return mean, log_var
         assert x.ndim == 2
         model_len = (
             len(self.elite_models) if self.elite_models is not None else len(self)
@@ -161,16 +189,22 @@ class BNN(Ensemble):
             # see https://github.com/pytorch/pytorch/issues/44714
             model_indices = torch.randperm(x.shape[1], device=self.device)
             return self._forward_from_indices(x, model_indices)
+        
         if self.propagation_method == "fixed_model":
             if propagation_indices is None:
                 raise ValueError(
                     "When using propagation='fixed_model', `propagation_indices` must be provided."
                 )
             return self._forward_from_indices(x, propagation_indices)
-        if self.propagation_method == "expectation":
-            pred = self._default_forward(x, only_elite=True)
-            return pred.mean(dim=0)
 
+        if self.propagation_method == "expectation":
+            pred, log_var = self._default_forward(x, only_elite=True)
+
+            if self.prob_output:
+                return pred.mean(dim=0), log_var.mean(dim = 0)
+            else:
+                return pred.mean(dim=0), None
+            
         raise ValueError(f"Invalid propagation method {self.propagation_method}.")
 
     def forward(  # type: ignore
@@ -195,14 +229,30 @@ class BNN(Ensemble):
         if model_in.ndim == 2:  # add model dimension
             model_in = model_in.unsqueeze(0)
             target = target.unsqueeze(0)
-        pred_mean = self.forward(model_in, use_propagation=False)
+        pred_mean, _ = self.forward(model_in, use_propagation=False)
         return F.mse_loss(pred_mean, target, reduction="none").sum((1, 2)).sum()
 
-    def _nll_loss(self, model_in: torch.Tensor, target: torch.Tensor):
-        assert model_in.ndim == target.ndim
+    # def _nll_loss(self, model_in: torch.Tensor, target: torch.Tensor):
+    #     assert model_in.ndim == target.ndim
         
-        pred_mean = self.forward(model_in, use_propagation=False)
-        return F.nll_loss(pred_mean, target, reduction="none").sum((1, 2)).sum()
+    #     pred_mean = self.forward(model_in, use_propagation=False)
+    #     return F.nll_loss(pred_mean, target, reduction="none").sum((1, 2)).sum()
+    
+    def _nll_loss(self, model_in: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        assert model_in.ndim == target.ndim
+        if model_in.ndim == 2:  # add ensemble dimension
+            model_in = model_in.unsqueeze(0)
+            target = target.unsqueeze(0)
+        pred_mean, pred_logvar = self.forward(model_in, use_propagation=False)
+        if target.shape[0] != self.num_members:
+            target = target.repeat(self.num_members, 1, 1)
+        nll = (
+            mbrl.util.math.gaussian_nll(pred_mean, pred_logvar, target, reduce=False)
+            .mean((1, 2))  # average over batch and target dimension
+            .sum()
+        )  # sum over ensemble dimension
+        nll += 0.01 * (self.max_logvar.sum() - self.min_logvar.sum())
+        return nll
 
     def loss(
         self,
@@ -248,7 +298,7 @@ class BNN(Ensemble):
             if isinstance(module, (BayesianLinearEnsembleLayer)):
                 kl_divergence += module.log_variational_posterior - module.log_prior
 
-        return kl_divergence
+        return kl_divergence * self.kl_reduction_factor
 
     def get_complexity_cost(self):
         '''
@@ -301,7 +351,10 @@ class BNN(Ensemble):
         loss = 0
         complexity_cost_weight *= 1/inputs.shape[-2]
         for _ in range(sample_nbr):
-            loss += self._mse_loss(inputs, targets)
+            if self.prob_output:
+                loss += self._nll_loss(inputs, targets)
+            else:
+                loss += self._mse_loss(inputs, targets)
             loss += self.nn_kl_divergence() * complexity_cost_weight
 
         loss/= sample_nbr
@@ -327,7 +380,7 @@ class BNN(Ensemble):
         assert model_in.ndim == 2 and target.ndim == 2
         with torch.no_grad():
             self.freeze_model()
-            pred = self.forward(model_in, use_propagation=False)
+            pred, _ = self.forward(model_in, use_propagation=False)
             target = target.repeat((self.num_members, 1, 1))
             self.unfreeze_model()
             return F.mse_loss(pred, target, reduction="none"), {}
@@ -380,16 +433,20 @@ class BNN(Ensemble):
         """
         if deterministic or self.freeze:
             self.freeze_model()
-            pred = self.forward(
+            pred, _ = self.forward(
                 model_input, rng=rng, propagation_indices=model_state["propagation_indices"]
             )
             self.unfreeze_model()
             return pred, model_state
         assert rng is not None
-        pred = self.forward(
+        mean, log_var = self.forward(
             model_input, rng=rng, propagation_indices=model_state["propagation_indices"]
         )
-        return pred, model_state
+        if log_var is None: return mean, model_state
+
+        stds = torch.sqrt(log_var.exp())
+        return torch.normal(mean, stds, generator=rng), model_state
+        # return mean, model_state
 
 
     def set_batch_count(self, num_batches):
