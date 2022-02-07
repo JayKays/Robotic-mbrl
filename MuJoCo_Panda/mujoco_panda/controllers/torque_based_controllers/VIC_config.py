@@ -4,13 +4,14 @@ import gym
 #! /usr/bin/env python
 import numpy as np
 import gym
+from gym import spaces
 #from gym_panda.envs import VIC_func as func
 
 SIM_STATUS = True
 ADD_NOISE = True
 NOISE_FRACTION = 0.015 #standard deviation of the noise is now 1.5 % of the force-value
 
-Fd = -10
+Fd = 10
 PUBLISH_RATE = 1000
 duration = 5
 z_max = 0.584#5.91776e-01

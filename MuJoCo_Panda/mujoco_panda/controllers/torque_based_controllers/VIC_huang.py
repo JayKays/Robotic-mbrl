@@ -1,4 +1,3 @@
-# from mujoco_panda.controllers.controller_base import ControllerBase
 from mujoco_panda.utils.tf import quatdiff_in_euler
 from .configs import BASIC_HYB_CONFIG
 import numpy as np
@@ -48,12 +47,12 @@ class VIC():
         self.B = self._config['B']
         self.max_num_it = self._config['max_num_it']
         self.gamma = np.identity(18)
-        self.gamma[8, 8] = self._config['gamma_B']
+        #self.gamma[8, 8] = self._config['gamma_B']
         self.gamma[14, 14] = self._config['gamma_K']
         self.lam = np.zeros(18)
         self.Kv = self._config['K_v']
         self.P = self._config['P']
-        self.action = np.array([self._config['gamma_B'], self._config['gamma_K']])
+        self.action = self._config['gamma_K']#np.array([self._config['gamma_B'], self._config['gamma_K']])
         self.B_hat_lower = self._config['B_hat_lower']
         self.B_hat_upper = self._config['B_hat_upper']
         self.K_hat_lower = self._config['K_hat_lower']
@@ -102,8 +101,8 @@ class VIC():
         :return: computed joint torque values
         :rtype: np.ndarray (7,)
         """
-        self.gamma[8, 8] = self.action[0]  # gamma B
-        self.gamma[14, 14] = self.action[1]  # gamma K
+        #self.gamma[8, 8] = self.action[0]  # gamma B
+        self.gamma[14, 14] = self.action  # gamma K
 
         p, x, x_dot, delta_x, jacobian, robot_inertia, F_ext_2D = \
             self.fetch_states(self.timestep,  self.goal_pos)
@@ -208,7 +207,7 @@ class VIC():
     def reset(self):
         self.timestep = 0
         self.gamma = np.identity(18)
-        self.gamma[8, 8] = self._config['gamma_B']
+        #self.gamma[8, 8] = self._config['gamma_B']
         self.gamma[14, 14] = self._config['gamma_K']
         self.lam = np.zeros(18)
         self.iteration = 0
@@ -298,11 +297,12 @@ class VIC():
     def update_MBK_hat(self, lam, M, B, K):
         M_hat = M  # + np.diagflat(lam[0:6]) M is chosen to be constant
         K_hat = K + np.diagflat(lam[12:18])
-        B_hat = B + np.diagflat(lam[6:12])
+        K_hat = np.clip(K_hat, self.K_hat_lower, self.K_hat_upper)
+        B_hat = B.copy()
         B_hat[2,2] = np.sqrt(K_hat[2,2])
         # ensure_limits(1,5000,M_hat)
         B_hat = np.clip(B_hat, self.B_hat_lower, self.B_hat_upper)
-        K_hat = np.clip(K_hat, self.K_hat_lower, self.K_hat_upper)
+
         return M_hat, B_hat, K_hat
 
     def get_x_dot_delta(self,x_d_dot, x_dot, two_dim=True):

@@ -3,7 +3,7 @@ import time
 import mujoco_py
 import numpy as np
 import gym
-from gym import spaces
+from gym import logger, spaces
 # sys.path.append("/home/akhil/PhD/RoL/mujoco_panda-master")
 from mujoco_panda import PandaArm
 from mujoco_panda.utils.viewer_utils import render_frame
@@ -14,8 +14,7 @@ from mujoco_panda.controllers.torque_based_controllers import VIC_config as cfg
 import time
 import random
 import quaternion
-from matplotlib import pyplot as plt
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 
 class VIC_Env(gym.Env):
@@ -36,8 +35,8 @@ class VIC_Env(gym.Env):
         self.robot.sim_step()
         time.sleep(1.0)
 
-        self.action_space = spaces.Box(low=np.array([cfg.GAMMA_B_LOWER, cfg.GAMMA_K_LOWER]), \
-                                     high=np.array([cfg.GAMMA_B_UPPER, cfg.GAMMA_K_UPPER]))
+        self.action_space = spaces.Box(low=np.array([cfg.GAMMA_K_LOWER]), \
+                                     high=np.array([cfg.GAMMA_K_UPPER]))
         # print("space: ", self.action_space.low[0])
         self.observation_space = spaces.Box(
             low=np.array([cfg.LOWER_Fz, cfg.LOWER_Z_ERROR, cfg.LOWER_Vz, cfg.LOWER_X_ERROR, \
@@ -66,8 +65,7 @@ class VIC_Env(gym.Env):
         self.goal_ori = np.asarray(self.robot.ee_pose()[1])
         self.x_d_ddot, self.x_d_dot, self.x_d = func.generate_desired_trajectory_tc(self.robot, self.max_num_it, cfg.T,
                                                                                     move_in_x=True)
-        plt.plot(self.x_d[0, :]) 
-        plt.plot(self.x_d[1, :])
+        plt.plot(self.x_d[0, :])
         plt.show()
 
         ctrl_config = {
@@ -95,7 +93,6 @@ class VIC_Env(gym.Env):
             'angular_error_thr': 0.01,
         }
         self.Fz_history = np.zeros(self.max_num_it)
-        self.state_history = np.zeros((self.max_num_it, self.observation_space.shape[0]))
         self.i = 0
         # print("mass: ", p.mass_matrix())
         self.controller = VIC(self.robot, config=ctrl_config)
@@ -115,8 +112,6 @@ class VIC_Env(gym.Env):
         self.controller._send_cmd()
         self.state = self.get_obs()
         self.Fz_history[self.i] = self.state[0]
-        # self.state_history[self.i,:] = self.state
-        print(self.state)
         self.i += 1
         self.controller.get_robot_states()
         self.state = self.get_obs()
@@ -173,7 +168,7 @@ if __name__ == "__main__":
         if timestep >= i:
             elapsed_r = time.time() - now_r
             # render controller target and current ee pose using frames
-            action = np.array([0.0001, 0.00001])  # np.random.uniform(1.e-6, 0.01, 2)
+            action = 0.0001#np.array([0.0001, 0.00001])  # np.random.uniform(1.e-6, 0.01, 2)
             s = VIC_env.step(action)
             #print(s)
             i += 1
@@ -182,9 +177,6 @@ if __name__ == "__main__":
         VIC_env.robot.render()  # render the visualisation
 
     plt.plot(VIC_env.Fz_history)
-    # plt.plot(VIC_env.state_history[:,-2])
-    # plt.plot(VIC_env.state_history[:,-1])
-    plt.legend(["x", "y"])
     plt.show()
     # input("Trajectory complete. Hit Enter to deactivate controller")
     VIC_env.controller.set_active(False)

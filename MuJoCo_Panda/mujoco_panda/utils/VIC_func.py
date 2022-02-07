@@ -102,9 +102,6 @@ def generate_desired_trajectory_tc(robot, max_num_it,T,move_in_x=False, move_dow
         a[1,int(max_num_it*3/10):int(max_num_it*4/10)]=0.05
         a[1,int(max_num_it*7/10):int(max_num_it*8/10)]=-0.05
 
-        a[0,int(max_num_it*3/10):int(max_num_it*4/10)]=0.05
-        a[0,int(max_num_it*7/10):int(max_num_it*8/10)]=-0.05
-
     for i in range(max_num_it):
         if i>0:
             v[:,i]=v[:,i-1]+a[:,i-1]*T

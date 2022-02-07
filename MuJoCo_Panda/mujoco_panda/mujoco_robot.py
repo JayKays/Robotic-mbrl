@@ -8,7 +8,6 @@ import mujoco_py as mjp
 from threading import Lock
 
 LOG_LEVEL = "DEBUG"
-LOG_LEVEL = "WARNING"
 
 class ContactInfo(object):
     def __init__(self, pos, ori, ft):
