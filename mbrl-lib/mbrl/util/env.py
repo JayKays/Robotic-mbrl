@@ -89,6 +89,11 @@ def _legacy_make_env(
             env = mbrl.env.mujoco_envs.HumanoidTruncatedObsEnv()
             term_fn = mbrl.env.termination_fns.ant
             reward_fn = None
+        elif cfg.overrides.env == "ultrasound_env":
+            # env = mbrl.env.mujoco_envs.UltrasoundEnv()
+            env = mbrl.env.mujoco_envs.make_ultrasound_env(cfg)
+            term_fn = mbrl.env.termination_fns.HFMC
+            reward_fn = mbrl.env.reward_fns.HFMC
         else:
             raise ValueError("Invalid environment string.")
         env = gym.wrappers.TimeLimit(

@@ -97,10 +97,11 @@ def humanoid(act: torch.Tensor, next_obs: torch.Tensor):
 def HFMC(act: torch.Tensor, next_obs: torch.Tensor):
     #assert len(next_obs.shape) == 2
     Fd = torch.tensor([3]).to(next_obs.device)
-    delta_F = torch.abs(next_obs[:, 1] - Fd)
-    delta_z = torch.abs(next_obs[:, 1])
-    delta_x = torch.abs(next_obs[:, 3])
-    delta_y = torch.abs(next_obs[:, 4])
-    done = (delta_F > 5) + (delta_z > 0.05) + (delta_x > 0.02) + (delta_y > 0.01)
+    delta_F = torch.abs(next_obs[:, 0] - Fd)
+    # delta_z = torch.abs(next_obs[:, 1])
+    # delta_x = torch.abs(next_obs[:, 3])
+    # delta_y = torch.abs(next_obs[:, 4])
+    # done = (delta_F > 5) + (delta_z > 0.05) + (delta_x > 0.02) + (delta_y > 0.01)
+    done = delta_F > 50
     done = done[:, None]
     return done
