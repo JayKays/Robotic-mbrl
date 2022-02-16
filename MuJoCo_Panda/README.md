@@ -1,4 +1,4 @@
-# Mujoco Panda
+# gym ultrasound
 
 - Franka Emika Panda Robot model definitions for Mujoco.
 - MuJoCo-based robot simulator.
