@@ -92,6 +92,7 @@ def generate_desired_trajectory_tc(robot, max_num_it,T,move_in_x=False, move_dow
     p = np.zeros((3,max_num_it))
     p[:,0] = robot.ee_pose()[0]
     p[2,0] =  p[2,0]-0.01
+    #p[2, 0] = p[2, 0] + 0.1
     
     if move_down:
         a[2,0:int(max_num_it/75)]=-0.25

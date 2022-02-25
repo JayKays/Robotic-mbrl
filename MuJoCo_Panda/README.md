@@ -1,12 +1,13 @@
 # gym ultrasound
 
+- Ultrasound probe env and free space motion env with and without gripper
 - Franka Emika Panda Robot model definitions for Mujoco.
 - MuJoCo-based robot simulator.
 - Python 3 API for controlling and monitoring the simulated Franka Emika Panda Robot.
 - Low-level controllers: direct position and torque control.
-- Higher-level controller: task-space hybrid force motion controller (torque-based).
+- Higher-level controller: Force based variable impedance controller using torque controller
 
-Robot models are in [mujoco_panda/models](mujoco_panda/models).
+Robot models are in [gym_robotic_ultrasound/mujoco_panda/models](gym_robotic_ultrasound/mujoco_panda/models).
 
 ## Requirements
 
@@ -28,4 +29,3 @@ source set_env.sh
 
 ## Usage
 
-See `examples` for controller and API usage. See [MujocoRobot](mujoco_panda/mujoco_robot.py) and [PandaArm](mujoco_panda/panda_robot.py) for full documentation.

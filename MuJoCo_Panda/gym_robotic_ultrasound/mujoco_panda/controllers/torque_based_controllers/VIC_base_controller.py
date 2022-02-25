@@ -37,12 +37,12 @@ class BaseControllerVIC():
         self.goal_vel = np.zeros(6)
         self.goal_acc = np.zeros(6)
         self.goal_force = np.zeros(6)
-        self.control_rate = control_rate if control_rate is not None else cfg.PUBLISH_RATE
+        self.control_rate = cfg.PUBLISH_RATE if control_rate is None else control_rate
         self.M = cfg.M
         self.K = cfg.K
         self.B = cfg.B
-        self.max_num_it = kwargs.get("max_num_it", cfg.MAX_NUM_IT) + 1
-        
+        self.max_num_it = kwargs.get("max_num_it",cfg.MAX_NUM_IT) + 1
+
         self.K_full = np.zeros((6,6))
         self.Kv = cfg.K_v
         self.P = cfg.P
@@ -101,8 +101,8 @@ class BaseControllerVIC():
         sleep_time_c = (1./self.control_rate) - elapsed_c
         if sleep_time_c > 0.0:
             time.sleep(sleep_time_c)
-        self.get_robot_states()
         self.timestep = self.timestep +1
+        self.get_robot_states()
 
     def stop_controller_cleanly(self):
         """
@@ -149,7 +149,6 @@ class BaseControllerVIC():
         self.Kp_pos_hist = np.zeros(self.max_num_it)
         self.Kp_z_hist = np.zeros(self.max_num_it)
         self.Kd_z_hist = np.zeros(self.max_num_it)
-        self.torque_history = np.zeros((self.max_num_it, 7))
 
     def perform_torque_Huang1992(self, M, B, K, x_d_ddot, x_d_dot, x, x_dot, p_d, F_ext_2D, jacobian, robot_inertia):
         self.demo_data_dict["k"] = K[2, 2]

@@ -30,7 +30,7 @@ class VIC(BaseControllerVIC):
             BASIC_HYB_CONFIG (see config for reference)
         :type config: dict, optional
         """
-        super().__init__(robot_object)
+        super().__init__(robot_object, control_rate=control_rate, max_num_it = kwargs.get("max_num_it"),)
         #super(VIC,self).__init__(robot_object, config)
         self.demo_data_dict = {}
         self.demo_data = []
@@ -67,7 +67,7 @@ class VIC(BaseControllerVIC):
         #M_hat = M  # + np.diagflat(lam[0:6]) M is chosen to be constant
         self.K = self.K + delta_K
         self.K = np.clip(self.K, self.K_hat_lower, self.K_hat_upper)
-        self.B[2,2] = np.sqrt(self.K[2,2])
+        self.B[2,2] = 2*np.sqrt(self.K[2,2])
         # ensure_limits(1,5000,M_hat)
         self.B = np.clip(self.B, self.B_hat_lower, self.B_hat_upper)
 

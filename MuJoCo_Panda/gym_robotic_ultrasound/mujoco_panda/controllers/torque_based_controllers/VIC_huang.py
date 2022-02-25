@@ -30,7 +30,7 @@ class HuangVIC(BaseControllerVIC):
             BASIC_HYB_CONFIG (see config for reference)
         :type config: dict, optional
         """
-        super().__init__(robot_object, max_num_it = kwargs.get("max_num_it"), control_rate=control_rate)
+        super().__init__(robot_object, control_rate=control_rate, max_num_it = kwargs.get("max_num_it"), )
         self.demo_data_dict = {}
         self.demo_data = []
         self.gamma = np.identity(18)
