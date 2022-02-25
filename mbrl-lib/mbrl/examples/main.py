@@ -11,6 +11,7 @@ import mbrl.algorithms.mbpo as mbpo
 import mbrl.algorithms.pets as pets
 import mbrl.algorithms.planet as planet
 import mbrl.algorithms.bets as bets
+import mbrl.algorithms.exploration_pets as EE
 import mbrl.util.env
 
 
@@ -28,6 +29,8 @@ def run(cfg: omegaconf.DictConfig):
         return planet.train(env, cfg)
     if cfg.algorithm.name == "bets":
         return bets.train(env, term_fn, reward_fn, cfg)
+    if cfg.algorithm.name == "EE":
+        return EE.train(env, term_fn, reward_fn, cfg)
 
 
 if __name__ == "__main__":

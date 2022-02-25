@@ -55,7 +55,7 @@ class UltrasoundEnv(gym.Env):
                                      high=np.array([cfg.GAMMA_K_UPPER]))
         elif controller == "VIC":
             print("VIC controller")
-            self.controller = VIC(self.robot,max_num_it=max_num_it, )
+            self.controller = VIC(self.robot,max_num_it=max_num_it, control_rate = control_rate, )
             if position_as_action:
                 self.action_space = spaces.Box(low=np.array([cfg.DELTA_K_LOWER, cfg.DELTA_Z_LOWER]), \
                                            high=np.array([cfg.DELTA_K_UPPER, cfg.DELTA_Z_UPPER]))
@@ -133,7 +133,7 @@ class UltrasoundEnv(gym.Env):
         # print(f"Env i: {self.i}, controller timestep: {self.controller.timestep}")
         self.controller.get_robot_states()
         self.state = self.get_obs()
-        if (self.i>= self.max_num_it-1)  or (np.abs(self.state[0]) > 100):
+        if (self.i >= self.max_num_it-1)  or (np.abs(self.state[0]) > 100):
             done = True#(self.iteration >= self.max_num_it)
         else:
             done = False
@@ -169,7 +169,7 @@ class UltrasoundEnv(gym.Env):
         self.robot.hard_set_joint_positions(self.init_jpos)
         return self.get_obs()
 
-    def render(self, mode="human"):
+    def render(self, **kwargs):
         self.robot.render()
 
     def update_log(self):

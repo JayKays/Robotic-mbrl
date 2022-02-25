@@ -11,3 +11,6 @@ from .trajectory_opt import (
     TrajectoryOptimizerAgent,
     create_trajectory_optim_agent_for_model,
 )
+
+from .eeagent import EEAgent, create_ee_agent_for_model, create_exploration_agent_for_model
+from .util import create_agent_for_model

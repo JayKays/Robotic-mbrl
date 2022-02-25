@@ -1,11 +1,12 @@
 
-from typing import Sequence
-from .trajectory_opt import TrajectoryOptimizerAgent
+
+from mbrl.models.model_env import ModelEnv
+from .trajectory_opt import TrajectoryOptimizerAgent, create_trajectory_optim_agent_for_model
 from .core import Agent, complete_agent_cfg
 import omegaconf
-from .trajectory_opt import TrajectoryOptimizer
 import numpy as np
 import mbrl
+import hydra
 
 class EEAgent(Agent):
     """
@@ -14,58 +15,81 @@ class EEAgent(Agent):
     explore parts of the state/action space were predictions are uncertain.
     """
 
-    def __init__(
-        self,
-        optimizer_cfg: omegaconf.DictConfig,
-        action_lb: Sequence[float],
-        action_ub: Sequence[float],
-        planning_horizon: int = 1,
-        replan_freq: int = 1,
-        verbose: bool = False,
-        keep_last_solution: bool = True
+    def __init__(self, 
+        exploration_agent: TrajectoryOptimizerAgent, 
+        exploitation_agent: TrajectoryOptimizerAgent,
+        epsilon: float = 0.1
     ):
 
-        self.optimizer = TrajectoryOptimizer(
-            optimizer_cfg,
-            np.array(action_lb),
-            np.array(action_ub),
-            planning_horizon=planning_horizon,
-            replan_freq=replan_freq,
-            keep_last_solution=keep_last_solution
+        self.explorer = exploration_agent
+        self.exploiter = exploitation_agent
+
+        self.epsilon = epsilon
+        self.explore = True
+    
+    def should_explore(self):
+        "returns True if agent should perform an exploration step, and False for exploitation"
+        if not self.explore:
+            return False
+        
+        if np.random.random() < self.epsilon:
+            return True
+        else:
+            return False
+    
+    def act(self, agent_obs):
+
+        if self.should_explore():
+            return self.explorer.act(agent_obs)
+        else:
+            return self.exploiter.act(agent_obs)
+
+
+    def plan(self):
+        if self.should_explore():
+            return self.explorer.plan()
+        else:
+            return self.exploiter.plan()
+    
+    def disable_exploration(self):
+        self.explore = False
+    
+    def enable_exploration(self):
+        self.explore = True
+
+def create_exploration_agent_for_model(
+    model_env: mbrl.models.ModelExpEnv,
+    agent_cfg: omegaconf.DictConfig, 
+    num_particles: int = 1
+):
+
+    complete_agent_cfg(model_env, agent_cfg)
+    agent = hydra.utils.instantiate(agent_cfg)
+
+    def trajectory_eval_fn(initial_state, action_sequences):
+        return model_env.evaluate_action_sequences(
+            action_sequences, initial_state=initial_state, num_particles=num_particles, disagreement = True
         )
 
+    agent.set_trajectory_eval_fn(trajectory_eval_fn)
 
-        self.exploitation_eval_fn: mbrl.types.TrajectoryEvalFnType = None
-        self.exploration_eval_fn: mbrl.types.TrajectoryEvalFnType = None
-        self.planning_horizon = planning_horizon
-        self.replan_freq = replan_freq
-        self.verbose = verbose
-
-
-    def set_exploration_eval_fn(
-        self, eval_fn: mbrl.types.TrajectoryEvalFnType
-    ):
-        self.exploration_eval_fn = eval_fn
-
-    def set_exploitation_eval_fn(
-        self, eval_fn: mbrl.types.TrajectoryEvalFnType
-    ):
-        self.exploitation_eval_fn = eval_fn
-
-    def plan(self): pass
-    def act(self): pass
+    return agent
 
 
 def create_ee_agent_for_model(
-    model: mbrl.models.Ensemble,
+    model_env: mbrl.models.ModelExpEnv,
     agent_cfg: omegaconf.DictConfig,
     num_particles: int = 1
 ) -> EEAgent:
 
-    #TODO Figure out how to use model env with uncertainty based exploration
-    pass
+    exploration_agent = create_exploration_agent_for_model(model_env, agent_cfg, num_particles)
+    cem_agent = create_trajectory_optim_agent_for_model(model_env, agent_cfg, num_particles)
 
+    eps = agent_cfg.get("epsilon", None)
+    if eps is None: print("No epsilon in config, default value used for Exploration threshold")
+
+    agent = EEAgent(exploration_agent=exploration_agent, exploitation_agent= cem_agent, epsilon=eps or 0.1)
+
+    return agent
 
     
-
-
