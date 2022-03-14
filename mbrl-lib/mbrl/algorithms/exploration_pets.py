@@ -55,8 +55,8 @@ def train(
 
     use_double_dtype = cfg.algorithm.get("normalize_double_precision", False)
     dtype = np.double if use_double_dtype else np.float32
-    
-    if not (os.path.exists(ext_data_dir) and os.path.isdir(ext_data_dir)):
+
+    if not os.path.isfile(ext_data_dir + "/replay_buffer.npz"):
         os.makedirs(ext_data_dir, exist_ok=True)
 
         data_buffer = mbrl.util.common.create_replay_buffer(
