@@ -10,9 +10,7 @@ import hydra
 
 class EEAgent(Agent):
     """
-    Implements a exploration vs exploitation based agent. 
-    By utilizing the underlying dynamics model's ability to quantify uncertainty, the agent aim to 
-    explore parts of the state/action space were predictions are uncertain.
+    Implements an  espilon greedy agent by combining one exploration and one exploitation agent.
     """
 
     def __init__(self, 
@@ -68,8 +66,7 @@ def create_exploration_agent_for_model(
 
     def trajectory_eval_fn(initial_state, action_sequences):
         return model_env.evaluate_action_sequences(
-            action_sequences, initial_state=initial_state, num_particles=num_particles, disagreement = True
-        )
+            action_sequences, initial_state=initial_state, num_particles=num_particles)
 
     agent.set_trajectory_eval_fn(trajectory_eval_fn)
 

@@ -157,16 +157,18 @@ class UltrasoundEnv(gym.Env):
         return self.state, reward, done, info
 
     def reset(self):
-        # if cfg.LOG:
-        #     self.update_log()
-        #     self.save_log()
-
-        print("resetting the controller")
-        self.controller.reset()
         print("resetting envs")
         index = 0  # np.random.randint(0, (0.9 * self.max_num_it))
         self.i = index
         self.robot.hard_set_joint_positions(self.init_jpos)
+        self.robot.sim_step()
+        #time.sleep(1)
+        #self.robot.hard_set_joint_positions(self.init_jpos)
+        #self.robot.sim_step()
+
+        #print(self.robot.ee_pose())
+        #print("resetting the controller")
+        self.controller.reset()
         return self.get_obs()
 
     def render(self, **kwargs):
@@ -218,7 +220,7 @@ def make_ultrasound_env(env_cfg):
 
 if __name__ == "__main__":
 
-    VIC_env = UltrasoundEnv(controller = "VIC_Huang") #
+    VIC_env = UltrasoundEnv(controller = "VIC_Huang")
     #gym.make("gym_robotic_ultrasound:ultrasound-v0")
     curr_ee, curr_ori = VIC_env.robot.ee_pose()
     print(VIC_env.robot.ee_pose()[1])

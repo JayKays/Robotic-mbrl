@@ -210,3 +210,26 @@ class Conv2dDecoder(nn.Module):
         for i in range(0, len(self.deconvs)):
             deconv = self.deconvs[i](deconv)
         return deconv
+
+
+def estimate_uncertainty(model, data_dir, idx = 0):
+
+    dataset = np.load(data_dir + "/replay_buffer.npz")
+
+    obs = dataset["obs"][idx:]
+    act = dataset["action"][idx:]
+
+    with torch.no_grad():
+            model_in = model._get_model_input(obs, act)
+            means, _ = model.forward(model_in, use_propagation=False)
+            uncertainty = torch.var(means, dim=0).mean()
+
+            return uncertainty
+
+def log_uncertainty(work_dir, unc_dict, **kwargs):
+
+    for key in kwargs.keys():
+        if key in unc_dict:
+            unc_dict[key] = np.append(unc_dict[key], kwargs[key])
+
+    np.savez(work_dir + "/uncertainty_log", **unc_dict)

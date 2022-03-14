@@ -20,6 +20,7 @@ import mbrl.util.math
 
 EVAL_LOG_FORMAT = mbrl.constants.EVAL_LOG_FORMAT
 
+import time
 
 def train(
     env: gym.Env,
@@ -50,6 +51,9 @@ def train(
         logger.register_group(
             mbrl.constants.RESULTS_LOG_NAME, EVAL_LOG_FORMAT, color="green"
         )
+
+    uncertainty_record = {"full": np.array([]), "trial": np.array([]), "ext": np.array([])}
+    ext_data = np.load(work_dir + "/.."*6 + f"/datasets/{cfg.overrides.env}/replay_buffer.npz")
 
     # -------- Create and populate initial env dataset --------
     dynamics_model = mbrl.util.common.create_one_dim_tr_model(cfg, obs_shape, act_shape)
@@ -89,6 +93,8 @@ def train(
         model_env, cfg.algorithm.agent, num_particles=cfg.algorithm.num_particles
     )
 
+    times = np.empty((cfg.overrides.num_steps,))
+
     # ---------------------------------------------------------
     # --------------------- Training Loop ---------------------
     env_steps = 0
@@ -110,7 +116,20 @@ def train(
                     replay_buffer,
                     work_dir=work_dir,
                 )
+                
+                full_uncertainty = mbrl.models.util.estimate_uncertainty(model_env.dynamics_model, work_dir)
+                trial_uncertainty = mbrl.models.util.estimate_uncertainty(model_env.dynamics_model, work_dir, idx=-cfg.overrides.trial_length)
+                ext_uncertainty = model_env.update_epsilon(ext_data["obs"], ext_data["action"])
 
+                mbrl.models.util.log_uncertainty(
+                    work_dir, 
+                    uncertainty_record, 
+                    full=full_uncertainty.cpu(), 
+                    trial= trial_uncertainty.cpu(), 
+                    ext=ext_uncertainty.cpu()
+                )
+
+            start = time.time()
             # --- Doing env step using the agent and adding to model dataset ---
             next_obs, reward, done, _ = mbrl.util.common.step_env_and_add_to_buffer(
                 env, obs, agent, {}, replay_buffer
@@ -127,6 +146,8 @@ def train(
             if cfg.render and hasattr(env, "render"):
                 env.render()
 
+            times[(env_steps-1)%times.shape[0]] = time.time() - start
+
         if logger is not None:
             logger.log_data(
                 mbrl.constants.RESULTS_LOG_NAME,
@@ -138,4 +159,5 @@ def train(
 
         max_total_reward = max(max_total_reward, total_reward)
 
+    print(f"Average step time: {times.mean()}")
     return np.float32(max_total_reward)

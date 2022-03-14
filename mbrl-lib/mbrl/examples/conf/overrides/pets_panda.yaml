@@ -3,11 +3,11 @@ env: "ultrasound_env"
 term_fn: "HFMC"
 reward_fn: "HFMC"
 learned_rewards: False
-trial_length: 500
-num_steps: 1000
+trial_length: 1000
+num_steps: 2000
 
 #Controller spesific parameters
-controller: "VIC_Huang"
+controller: "VIC"
 publish_rate: 100
 
 num_elites: 5

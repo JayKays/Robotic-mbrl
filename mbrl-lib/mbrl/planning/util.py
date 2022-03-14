@@ -23,6 +23,7 @@ def create_agent_for_model(
     elif agent_type == "Exploration_Exploitation":
         return create_ee_agent_for_model(model_env, agent_cfg, num_particles)
     elif agent_type == "pets":
+        model_env.set_exploration(False)
         return create_trajectory_optim_agent_for_model(model_env, agent_cfg, num_particles)
     else:
         raise ValueError("Invalid agent type")

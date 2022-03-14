@@ -220,7 +220,7 @@ def make_ultrasound_env(env_cfg):
 
 if __name__ == "__main__":
 
-    VIC_env = UltrasoundEnv(controller = "VIC_Huang") #
+    VIC_env = UltrasoundEnv(controller = "VIC_Huang")
     #gym.make("gym_robotic_ultrasound:ultrasound-v0")
     curr_ee, curr_ori = VIC_env.robot.ee_pose()
     print(VIC_env.robot.ee_pose()[1])
