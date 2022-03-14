@@ -1,7 +1,7 @@
 # @package _group_
-env: "panda_env"
-term_fn: "panda_traj_tracking"
-reward_fn: "panda_traj_tracking"
+env: "ultrasound_env"
+term_fn: "HFMC"
+reward_fn: "HFMC"
 learned_rewards: False
 trial_length: 1000
 num_steps: 2000

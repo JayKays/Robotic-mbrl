@@ -15,12 +15,16 @@ from mujoco_panda.controllers.torque_based_controllers import VIC_config as cfg
 import time
 import random
 import quaternion
+import matplotlib
+matplotlib.use("TKAgg")
 import matplotlib.pyplot as plt
+
 
 
 class UltrasoundEnv(gym.Env):
 
-    def __init__(self, position_as_action = False, controller = "VIC_Huang", control_rate = None, log_dir = None, max_num_it = cfg.MAX_NUM_IT, render=True):
+    def __init__(self, position_as_action = False, controller = "VIC_Huang", control_rate = None, \
+                 log_dir = None, max_num_it = cfg.MAX_NUM_IT, render=True):
 
         MODEL_PATH = os.environ['MJ_PANDA_PATH'] + '/mujoco_panda/models/'
         #self.robot = PandaArm(model_path=MODEL_PATH + 'panda_block_table.xml',

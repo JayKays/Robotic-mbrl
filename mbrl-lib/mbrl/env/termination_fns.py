@@ -105,3 +105,9 @@ def HFMC(act: torch.Tensor, next_obs: torch.Tensor):
     done = delta_F > 50
     done = done[:, None]
     return done
+
+def panda_traj_tacking(act: torch.Tensor, next_obs: torch.Tensor):
+    #assert len(next_obs.shape) == 2
+    done = next_obs[:,0:3].abs().sum(axis=1) > 10
+    done = done[:, None]
+    return done

@@ -75,3 +75,13 @@ def HFMC1(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
     delta_f = (Fd - f_z).abs().sum(axis=1)
     sq_error = torch.square(delta_f)
     return -(sq_error).view(-1, 1)
+
+def panda_traj_tracking(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
+    #for 5 states
+    #assert len(next_obs.shape) == len(act.shape) == 2
+    #reward_ctrl = -0.1 * act.square().sum(dim=1)
+    obs_cost = next_obs[:,0:3].abs().sum(axis=1)
+    act_cost = 0.1 * (act ** 2).sum(axis=1)
+    #reward = torch.exp(-torch.sum((10*next_obs[:,0:3] ** 2), dim=1))#np.exp(-np.square(next_obs[3]))
+    reward  = -(obs_cost + act_cost)
+    return reward.view(-1, 1)
