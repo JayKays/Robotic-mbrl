@@ -53,6 +53,9 @@ def train(
             mbrl.constants.RESULTS_LOG_NAME, EVAL_LOG_FORMAT, color="green"
         )
 
+    use_double_dtype = cfg.algorithm.get("normalize_double_precision", False)
+    dtype = np.double if use_double_dtype else np.float32
+    
     if not (os.path.exists(ext_data_dir) and os.path.isdir(ext_data_dir)):
         os.makedirs(ext_data_dir, exist_ok=True)
 
@@ -83,8 +86,6 @@ def train(
 
     # -------- Create and populate initial env dataset --------
     dynamics_model = mbrl.util.common.create_one_dim_tr_model(cfg, obs_shape, act_shape)
-    use_double_dtype = cfg.algorithm.get("normalize_double_precision", False)
-    dtype = np.double if use_double_dtype else np.float32
     replay_buffer = mbrl.util.common.create_replay_buffer(
         cfg,
         obs_shape,
@@ -155,7 +156,7 @@ def train(
                     ext=ext_uncertainty.cpu()
                 )
 
-            start = time.time()
+            # start = time.time()
             # --- Doing env step using the agent and adding to model dataset ---
             next_obs, reward, done, _ = mbrl.util.common.step_env_and_add_to_buffer(
                 env, obs, agent, {}, replay_buffer
