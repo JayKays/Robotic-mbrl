@@ -74,7 +74,7 @@ class ModelExpEnv(ModelEnv):
         "Maps a value to (0,1) interval"
 
         # return torch.tanh(1e-3*value)
-        return torch.log(value)
+        return torch.log1p(value)
     
     def set_exploration(self, exploration: bool):
         self.exploration = exploration
