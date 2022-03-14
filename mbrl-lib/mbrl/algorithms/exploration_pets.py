@@ -42,6 +42,7 @@ def train(
         torch_generator.manual_seed(cfg.seed)
 
     work_dir = work_dir or os.getcwd()
+    ext_data_dir = work_dir + "/.."*6 + f"/datasets/{cfg.overrides.env}"
     print(f"Results will be saved at {work_dir}.")
 
     if silent:
@@ -52,8 +53,33 @@ def train(
             mbrl.constants.RESULTS_LOG_NAME, EVAL_LOG_FORMAT, color="green"
         )
 
+    if not (os.path.exis(ext_data_dir) and os.path.isdir(ext_data_dir)):
+        os.makedirs(ext_data_dir, exist_ok=True)
+
+        data_buffer = mbrl.util.common.create_replay_buffer(
+        cfg,
+        obs_shape,
+        act_shape,
+        rng=rng,
+        obs_type=dtype,
+        action_type=dtype,
+        reward_type=dtype,
+        )
+        num_trajectories = cfg.overrides.get("num_ext_trajectories", 20)
+        for _ in range(num_trajectories):
+            mbrl.util.common.rollout_agent_trajectories(
+                env,
+                cfg.algorithm.initial_exploration_steps,
+                mbrl.planning.RandomAgent(env),
+                {},
+                replay_buffer=replay_buffer,
+            )
+            data_buffer.save(ext_data_dir)
+
+        print(f"Saved {num_trajectories} random trajectories to {os.path.abspath(ext_data_dir)}")
+
+    ext_data = np.load(ext_data_dir + "/replay_buffer.npz")
     uncertainty_record = {"full": np.array([]), "trial": np.array([]), "ext": np.array([])}
-    ext_data = np.load(work_dir + "/.."*6 + f"/datasets/{cfg.overrides.env}/replay_buffer.npz")
 
     # -------- Create and populate initial env dataset --------
     dynamics_model = mbrl.util.common.create_one_dim_tr_model(cfg, obs_shape, act_shape)
@@ -93,7 +119,7 @@ def train(
         model_env, cfg.algorithm.agent, num_particles=cfg.algorithm.num_particles
     )
 
-    times = np.empty((cfg.overrides.num_steps,))
+    # times = np.empty((cfg.overrides.num_steps,))
 
     # ---------------------------------------------------------
     # --------------------- Training Loop ---------------------
@@ -146,7 +172,7 @@ def train(
             if cfg.render and hasattr(env, "render"):
                 env.render()
 
-            times[(env_steps-1)%times.shape[0]] = time.time() - start
+            # times[(env_steps-1)%times.shape[0]] = time.time() - start
 
         if logger is not None:
             logger.log_data(
@@ -159,5 +185,5 @@ def train(
 
         max_total_reward = max(max_total_reward, total_reward)
 
-    print(f"Average step time: {times.mean()}")
+    # print(f"Average step time: {times.mean()}")
     return np.float32(max_total_reward)
