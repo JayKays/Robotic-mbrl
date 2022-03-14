@@ -53,7 +53,7 @@ def train(
             mbrl.constants.RESULTS_LOG_NAME, EVAL_LOG_FORMAT, color="green"
         )
 
-    if not (os.path.exis(ext_data_dir) and os.path.isdir(ext_data_dir)):
+    if not (os.path.exists(ext_data_dir) and os.path.isdir(ext_data_dir)):
         os.makedirs(ext_data_dir, exist_ok=True)
 
         data_buffer = mbrl.util.common.create_replay_buffer(
