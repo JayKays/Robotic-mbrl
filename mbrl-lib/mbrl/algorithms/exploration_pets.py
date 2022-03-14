@@ -75,7 +75,7 @@ def train(
                 cfg.algorithm.initial_exploration_steps,
                 mbrl.planning.RandomAgent(env),
                 {},
-                replay_buffer=replay_buffer,
+                replay_buffer=data_buffer,
             )
             data_buffer.save(ext_data_dir)
 
