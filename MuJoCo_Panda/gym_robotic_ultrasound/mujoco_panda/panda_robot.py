@@ -258,7 +258,9 @@ class PandaArm(MujocoRobot):
 
         torque_ids = np.intersect1d(act_ids, self._torque_actuators)
         pos_ids = np.intersect1d(act_ids, self._pos_actuators)
+        #print(cmd)
         if len(torque_ids) > 0:
+            #print("setting joint torques")
             self.set_joint_torques(
                 cmd[torque_ids], torque_ids, *args, **kwargs)
 
@@ -303,8 +305,10 @@ class PandaArm(MujocoRobot):
             print("compendating dynamics")
             self._ignore_grav_comp = True
             cmd[torque_ids] += self.gravity_compensation_torques()[torque_ids]
+        #print(cmd)
         if len(torque_ids) > 0:
             self.set_actuator_ctrl(cmd[torque_ids], torque_ids)
+            #print("settingtorques")
 
 
     def set_joint_positions(self, cmd=None, joint_ids=None, *args, **kwargs):

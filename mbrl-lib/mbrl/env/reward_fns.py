@@ -9,7 +9,6 @@ from . import termination_fns
 
 def cartpole(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
     assert len(next_obs.shape) == len(act.shape) == 2
-
     return (~termination_fns.cartpole(act, next_obs)).float().view(-1, 1)
 
 
@@ -26,13 +25,11 @@ def cartpole_pets(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
 
 def inverted_pendulum(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
     assert len(next_obs.shape) == len(act.shape) == 2
-
     return (~termination_fns.inverted_pendulum(act, next_obs)).float().view(-1, 1)
 
 
 def halfcheetah(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
     assert len(next_obs.shape) == len(act.shape) == 2
-
     reward_ctrl = -0.1 * act.square().sum(dim=1)
     reward_run = next_obs[:, 0] - 0.0 * next_obs[:, 2].square()
     return (reward_run + reward_ctrl).view(-1, 1)
@@ -40,10 +37,8 @@ def halfcheetah(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
 
 def pusher(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
     goal_pos = torch.tensor([0.45, -0.05, -0.323]).to(next_obs.device)
-
     to_w, og_w = 0.5, 1.25
     tip_pos, obj_pos = next_obs[:, 14:17], next_obs[:, 17:20]
-
     tip_obj_dist = (tip_pos - obj_pos).abs().sum(axis=1)
     obj_goal_dist = (goal_pos - obj_pos).abs().sum(axis=1)
     obs_cost = to_w * tip_obj_dist + og_w * obj_goal_dist
@@ -80,8 +75,9 @@ def panda_traj_tracking(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tens
     #for 5 states
     #assert len(next_obs.shape) == len(act.shape) == 2
     #reward_ctrl = -0.1 * act.square().sum(dim=1)
-    obs_cost = next_obs[:,0:3].abs().sum(axis=1)
-    act_cost = 0.1 * (act ** 2).sum(axis=1)
+    obs_cost = torch.sum((100 * next_obs[:, 0:3] ** 2), dim=1)
+    #obs_cost = 10*next_obs[:,0:3].abs().sum(axis=1)
+    act_cost = 0 * (act ** 2).sum(axis=1)
     #reward = torch.exp(-torch.sum((10*next_obs[:,0:3] ** 2), dim=1))#np.exp(-np.square(next_obs[3]))
-    reward  = -(obs_cost + act_cost)
+    reward  = -(1*obs_cost + 1*act_cost)
     return reward.view(-1, 1)

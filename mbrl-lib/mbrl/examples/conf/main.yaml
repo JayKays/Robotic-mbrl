@@ -1,8 +1,8 @@
 defaults:
   - algorithm: pets
   - dynamics_model: gaussian_mlp_ensemble
-  - overrides: pets_cartpole
-  - action_optimizer: cem
+  - overrides: pets_mppi_panda
+  - action_optimizer: mppi
 
 seed: 0
 device: "cuda:0"

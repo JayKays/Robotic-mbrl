@@ -270,6 +270,7 @@ class OneDTransitionRewardModel(Model):
             (tuple of two tensors): predicted next_observation (o_{t+1}) and rewards (r_{t+1}).
         """
         obs = model_util.to_tensor(model_state["obs"]).to(self.device)
+        #print(act)
         model_in = self._get_model_input(model_state["obs"], act)
         if not hasattr(self.model, "sample_1d"):
             raise RuntimeError(

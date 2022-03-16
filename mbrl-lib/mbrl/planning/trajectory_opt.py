@@ -653,7 +653,7 @@ class TrajectoryOptimizerAgent(Agent):
         self.optimizer.reset()
 
     def act(
-        self, obs: np.ndarray, optimizer_callback: Optional[Callable] = None, **_kwargs
+        self, obs: np.ndarray, act_passive: np.ndarray, optimizer_callback: Optional[Callable] = None, **_kwargs
     ) -> np.ndarray:
         """Issues an action given an observation.
 
@@ -676,8 +676,10 @@ class TrajectoryOptimizerAgent(Agent):
             )
         plan_time = 0.0
         if not self.actions_to_use:  # re-plan is necessary
-
+            #print(act_passive)
             def trajectory_eval_fn(action_sequences):
+                A = torch.from_numpy(act_passive).expand(action_sequences.size()).to(torch.device('cuda:0'))
+                action_sequences = torch.cat((action_sequences,A) , -1)
                 return self.trajectory_eval_fn(obs, action_sequences)
 
             start_time = time.time()
@@ -739,7 +741,6 @@ def create_trajectory_optim_agent_for_model(
     """
     complete_agent_cfg(model_env, agent_cfg)
     agent = hydra.utils.instantiate(agent_cfg)
-
     def trajectory_eval_fn(initial_state, action_sequences):
         return model_env.evaluate_action_sequences(
             action_sequences, initial_state=initial_state, num_particles=num_particles

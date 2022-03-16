@@ -90,8 +90,9 @@ def generate_desired_trajectory_tc(robot, max_num_it,T,move_in_x=False, move_dow
     a = np.zeros((6,max_num_it))
     v = np.zeros((6,max_num_it))
     p = np.zeros((3,max_num_it))
+    #robot.reset()
     p[:,0] = robot.ee_pose()[0]
-    p[2,0] =  p[2,0]-0.01
+    #p[2,0] =  p[2,0]
     #p[2, 0] = p[2, 0] + 0.1
     
     if move_down:
@@ -100,10 +101,12 @@ def generate_desired_trajectory_tc(robot, max_num_it,T,move_in_x=False, move_dow
 
 
     if move_in_x:
-        a[1,int(max_num_it*3/10):int(max_num_it*4/10)]= 0.05
-        a[1,int(max_num_it*7/10):int(max_num_it*8/10)]=-0.05
-        #a[0, int(max_num_it * 3 / 10):int(max_num_it * 4 / 10)] = 0.05
-        #a[0, int(max_num_it * 7 / 10):int(max_num_it * 8 / 10)] = -0.05
+        a[1,int(max_num_it*0/10):int(max_num_it*5/10)]= 0.5#25
+        a[1,int(max_num_it*5/10):int(max_num_it*10/10)]=-0.5#25
+        a[0, int(max_num_it * 0 / 10):int(max_num_it * 5 / 10)] = 0.5
+        a[0, int(max_num_it * 5 / 10):int(max_num_it * 10 / 10)] = -0.5
+        #a[0, int(max_num_it * 3 / 10):int(max_num_it * 4 / 10)] = 0.5
+        #a[0, int(max_num_it * 7 / 10):int(max_num_it * 8 / 10)] = -0.5
 
     for i in range(max_num_it):
         if i>0:
@@ -112,6 +115,30 @@ def generate_desired_trajectory_tc(robot, max_num_it,T,move_in_x=False, move_dow
     return a,v,p
 
 """Functions for generating desired FORCE trajectories"""
+
+
+def generate_random_trajectory(robot, max_num_it, T, x= True, y= True, z=True):
+
+    a = np.zeros((6, max_num_it))
+    v = np.zeros((6, max_num_it))
+    p = np.zeros((3, max_num_it))
+    # robot.reset()
+    p[:, 0] = robot.ee_pose()[0]
+    dim = []
+    if x:dim.append(0)
+    if y:dim.append(1)
+    if z:dim.append(2)
+
+    for k in dim:
+        r = np.random.uniform(low=-0.005, high=0.005, size=(1,))
+        sign = np.sign(np.random.uniform(low=-1, high=1))
+        for i in range(max_num_it):
+            a[k,i] =r +np.sign(r)*0.005 + sign * 0.01*np.sin(2*np.pi*max_num_it/(i+1))
+    for i in range(max_num_it):
+        if i > 0:
+            v[:, i] = v[:, i - 1] + a[:, i - 1] * T
+            p[:, i] = p[:, i - 1] + v[:3, i - 1] * T
+    return a, v, p
 
 def generate_Fd_steep(max_num_it,Fd,T):
     a = np.zeros((6,max_num_it))

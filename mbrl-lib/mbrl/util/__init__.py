@@ -94,4 +94,6 @@ def create_handler_from_str(env_name: str):
 
         return MujocoEnvHandler()
     else:
-        raise NotImplementedError
+        from mbrl.util.mujoco import MujocoEnvHandler
+        return MujocoEnvHandler()
+        #raise NotImplementedError

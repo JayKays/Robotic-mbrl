@@ -30,7 +30,7 @@ class HuangVIC(BaseControllerVIC):
             BASIC_HYB_CONFIG (see config for reference)
         :type config: dict, optional
         """
-        super().__init__(robot_object, control_rate=control_rate, max_num_it = kwargs.get("max_num_it"), )
+        super().__init__(robot_object)
         self.demo_data_dict = {}
         self.demo_data = []
         self.gamma = np.identity(18)
@@ -54,6 +54,7 @@ class HuangVIC(BaseControllerVIC):
         :rtype: np.ndarray (7,)
         """
         #self.gamma[8, 8] = self.action[0]  # gamma B
+        #print("helloooo")
         self.gamma[14, 14] = self.action  # gamma K
 
         x, x_dot, delta_x, jacobian, robot_inertia, F_ext_2D = \

@@ -494,7 +494,10 @@ class MujocoRobot(object):
 
         assert cmd.shape[0] == actuator_ids.shape[0]
         #print("setting torqueee", actuator_ids)
+        #print(cmd)
+        #print(actuator_ids)
         self._sim.data.ctrl[actuator_ids] = cmd
+        #time.sleep(0.5)
 
     def hard_set_joint_positions(self, values, indices=None):
         """
@@ -517,7 +520,7 @@ class MujocoRobot(object):
             self._asynch_thread_active = False
             self._asynch_sim_thread.join()
 
-    def sim_step(self, render=True):
+    def sim_step(self, render=False):
         """
         The actual step function to forward the simulation. Not required or recommended if 
         using asynchronous run.
@@ -560,6 +563,10 @@ class MujocoRobot(object):
         """
         if self._viewer is not None:
             self._viewer.render()
+        else:
+            self._viewer = mjp.MjViewer(self._sim)
+            self._viewer.render()
+
 
     def mass_matrix(self):
         mass_matrix = np.ndarray(shape=(len(self.sim.data.qvel) ** 2,), dtype=np.float64, order='C')

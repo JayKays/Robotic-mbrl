@@ -6,10 +6,6 @@ import os
 from typing import Optional
 
 import gym
-import numpy as np
-import omegaconf
-import torch
-
 import mbrl.constants
 import mbrl.models
 import mbrl.planning
@@ -18,10 +14,42 @@ import mbrl.util
 import mbrl.util.common
 import mbrl.util.math
 
+import argparse
+import pathlib
+from typing import List
+import hydra
+import numpy as np
+import omegaconf
+import torch
+
+import mbrl.algorithms.mbpo as mbpo
+import mbrl.algorithms.pets as pets
+import mbrl.algorithms.planet as planet
+import mbrl.algorithms.bets as bets
+import mbrl.algorithms.exploration_pets as EE
+import mbrl.util.env
+import matplotlib.pyplot as plt
 EVAL_LOG_FORMAT = mbrl.constants.EVAL_LOG_FORMAT
 
+def plot(traj, goal, k, f_ext, f, acc ):
+    #k =k.astype(int)
+    #print(k)
+    for i in range (15):
+        plt.subplot(5,3,i+1)
+        if i in (0,1,2):
+            plt.plot(100*traj[:, i])
+            plt.plot(100*goal[:, i])
+        elif i  in (3,4,5):
+            plt.plot(k[:, i-3])
+        elif i in (6,7,8):
+            plt.plot(f_ext[:, i-6])
+        elif i in (9,10,11):
+            plt.plot(f[:, i - 9])
+        else:
+            plt.plot(acc[:, i - 12])
+    plt.show()
 
-def train(
+def test( model_dir, dataset_dir, output_dir,
     env: gym.Env,
     termination_fn: mbrl.types.TermFnType,
     reward_fn: mbrl.types.RewardFnType,
@@ -30,17 +58,16 @@ def train(
     work_dir: Optional[str] = None,
 ) -> np.float32:
     # ------------------- Initialization -------------------
-    passive_actions = True
-    debug_mode = cfg.get("debug_mode", False)
+
+    debug_mode = cfg.get("debug_mode", True)
 
     obs_shape = env.observation_space.shape
     act_shape = env.action_space.shape
-    ext_actions = cfg.overrides.get("uncontrolled_states", False)
-    #print("ext_act: ", ext_actions)
-    if (ext_actions):
-        ext_act_shape = np.shape(env.get_external_states())[0]
+
+    if env.stiffness_adaptation:
+        act_passive_shape = 3
         act_shape = list(act_shape)
-        act_shape[0] += ext_act_shape
+        act_shape[0] += act_passive_shape
         act_shape = tuple(act_shape)
 
     rng = np.random.default_rng(seed=cfg.seed)
@@ -59,9 +86,25 @@ def train(
             mbrl.constants.RESULTS_LOG_NAME, EVAL_LOG_FORMAT, color="green"
         )
 
+    model_path = pathlib.Path(model_dir)
+    output_path = pathlib.Path(output_dir)
+    pathlib.Path.mkdir(output_path, parents=True, exist_ok=True)
+
+    #cfg = mbrl.util.common.load_hydra_cfg(model_path)
+    handler = mbrl.util.create_handler(cfg)
+
+    env, term_fn, reward_fn = handler.make_env(cfg)
+    reward_fn = reward_fn
+
+    dynamics_model = mbrl.util.common.create_one_dim_tr_model(
+        cfg,
+        obs_shape,
+        act_shape,
+        model_dir=model_path,
+    )
+
+
     # -------- Create and populate initial env dataset --------
-    dynamics_model = mbrl.util.common.create_one_dim_tr_model(cfg, obs_shape, act_shape) # debugging
-    #dynamics_model = mbrl.util.common.create_one_dim_tr_model_with_passive_actions(cfg, obs_shape, act_shape, act_pass_shape)
     use_double_dtype = cfg.algorithm.get("normalize_double_precision", False)
     dtype = np.double if use_double_dtype else np.float32
     replay_buffer = mbrl.util.common.create_replay_buffer(
@@ -73,30 +116,24 @@ def train(
         action_type=dtype,
         reward_type=dtype,
     )
-    mbrl.util.common.rollout_agent_trajectories(
+    '''mbrl.util.common.rollout_agent_trajectories(
         env,
-        cfg,
+        cfg.algorithm.initial_exploration_steps,
         mbrl.planning.RandomAgent(env),
         {},
         replay_buffer=replay_buffer,
     )
-    replay_buffer.save(work_dir)
+    replay_buffer.save(work_dir)'''
 
     # ---------------------------------------------------------
     # ---------- Create model environment and agent -----------
     model_env = mbrl.models.ModelEnv(
         env, dynamics_model, termination_fn, reward_fn, generator=torch_generator
     )
-    model_trainer = mbrl.models.ModelTrainer(
-        dynamics_model,
-        optim_lr=cfg.overrides.model_lr,
-        weight_decay=cfg.overrides.model_wd,
-        logger=logger,
-    )
-
     agent = mbrl.planning.create_trajectory_optim_agent_for_model(
         model_env, cfg.algorithm.agent, num_particles=cfg.algorithm.num_particles
     )
+    #print(cfg.algorithm.agent)
 
     # ---------------------------------------------------------
     # --------------------- Training Loop ---------------------
@@ -109,27 +146,53 @@ def train(
         done = False
         total_reward = 0.0
         steps_trial = 0
+        goal = []
+        stiffness = []
+        observations = []
+        acceleration = []
+        cartesian_force = []
+        ext_force = []
+        #print(env_Steps)
+        #print("hello")
         while not done:
             # --------------- Model Training -----------------
-            if env_steps % cfg.algorithm.freq_train_model == 0:
+            '''if env_steps % cfg.algorithm.freq_train_model == 0:
                 mbrl.util.common.train_model_and_save_model_and_data(
                     dynamics_model,
                     model_trainer,
                     cfg.overrides,
                     replay_buffer,
                     work_dir=work_dir,
-                )
-
+                )'''
+            g, K = env.get_goal()
             # --- Doing env step using the agent and adding to model dataset ---
             next_obs, reward, done, _ = mbrl.util.common.step_env_and_add_to_buffer(
-                env, obs, ext_actions, agent, {}, replay_buffer
+                env, obs, agent, {}, replay_buffer
             )
 
             obs = next_obs
             total_reward += reward
             steps_trial += 1
             env_steps += 1
-
+            extra_obs = env.get_extra_obs()
+            #print(done)
+            if done:
+                plot(np.array(observations), np.array(goal), np.array(stiffness), \
+                     np.array(ext_force), np.array(cartesian_force), np.array(acceleration))
+                observations = []
+                goal = []
+                stiffness = []
+                acceleration = []
+                cartesian_force = []
+                ext_force = []
+            else:
+                observations.append(extra_obs['pose'][0:3])
+                goal.append(g)
+                stiffness.append(np.diag(extra_obs['K'])[0:3])
+                # print(np.diag(extra_obs['K'])[0:3])
+                acceleration.append(extra_obs['acceleration'])
+                cartesian_force.append(extra_obs['cartesian_force'][0:3])
+                ext_force.append(extra_obs['ext_force'][0:3])
             if debug_mode:
                 print(f"Step {env_steps}: Reward {reward:.3f}.")
 
@@ -148,3 +211,19 @@ def train(
         max_total_reward = max(max_total_reward, total_reward)
 
     return np.float32(max_total_reward)
+
+@hydra.main(config_path="conf", config_name="main")
+def run(cfg: omegaconf.DictConfig):
+    env, term_fn, reward_fn = mbrl.util.env.EnvHandler.make_env(cfg)
+    np.random.seed(cfg.seed)
+    torch.manual_seed(cfg.seed)
+    dir = "/home/akhil/PhD/RoL/Robotic-mbrl/mbrl-lib/mbrl/examples/exp/pets/default/panda_env/2022.03.15/175818"
+    model_dir = dir
+    dataset_dir = dir
+    results_dir = dir
+    test(model_dir, dataset_dir, results_dir,env, term_fn, reward_fn, cfg)
+
+
+if __name__ == "__main__":
+    run()
+

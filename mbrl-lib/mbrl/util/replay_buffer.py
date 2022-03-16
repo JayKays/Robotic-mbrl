@@ -531,6 +531,7 @@ class ReplayBuffer:
             reward (float): the reward at time t + 1.
             done (bool): a boolean indicating whether the episode ended or not.
         """
+        #print(self.obs[self.cur_idx])
         self.obs[self.cur_idx] = obs
         self.next_obs[self.cur_idx] = next_obs
         self.action[self.cur_idx] = action

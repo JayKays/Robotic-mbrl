@@ -136,11 +136,17 @@ class PandaTrajTrack(gym.Env):#(modified_gym.GoalEnv):#
     def get_extra_obs(self):
         return self.obs_dict.copy()
 
+    def get_ext_force(self):
+        return (self.controller.virtual_ext_force.copy()[0:3])
+
+    def get_external_states(self):
+        return (self.controller.virtual_ext_force.copy()[0:3])
+
     def get_obs(self):
         self.obs_dict = self.controller.state_dict.copy()
         self.obs_dict['FT'] += self.controller.virtual_ext_force.copy()
         self.obs_dict['ext_force'] = self.controller.virtual_ext_force.copy()
-        if self.stiffness_adaptation:
+        if not self.stiffness_adaptation:
             #state = np.abs(self.controller.virtual_ext_force.copy()[0:3])
             state = np.concatenate((self.x_d - np.array(self.obs_dict["pose"][0:3].copy()), \
                        np.array(self.obs_dict["vel"][0:3].copy()), self.controller.virtual_ext_force.copy()[0:3]))
@@ -163,8 +169,8 @@ class PandaTrajTrack(gym.Env):#(modified_gym.GoalEnv):#
         return reward
 
     def get_reward_basic(self, achieved_goal, desired_goal, input):
-        obs_cost = np.sum(np.abs(desired_goal - achieved_goal))
-        act_cost = 0.1 * np.sum(np.square(input))
+        obs_cost = np.sum(np.square(100*(desired_goal - achieved_goal)))
+        act_cost = 0*0.1 * np.sum(np.square(input))
         # reward = torch.exp(-torch.sum((10*next_obs[:,0:3] ** 2), dim=1))#np.exp(-np.square(next_obs[3]))
         reward = -(obs_cost + act_cost)
         return reward
@@ -188,7 +194,7 @@ class PandaTrajTrack(gym.Env):#(modified_gym.GoalEnv):#
             current_vel = obs_dict['vel'][0:3]
             self.x_d_ddot = self.traj_ddot[:, self.i+1]
             self.x_d_dot  = self.traj_dot[:, self.i+1]
-            self.x_d      = self.traj[:, self.i+1]
+            self.x_d      = self.traj[:, self.i+1] #self.traj[:, -1]#
             self.x_d_dot[0:3] = (self.x_d - current_pose)/self.timestep
             self.x_d_ddot[0:3] = (self.x_d_dot[0:3] - current_vel) / self.timestep
             #print(self.x_d_dot[0:3], self.x_d_ddot[0:3] )
@@ -217,6 +223,7 @@ class PandaTrajTrack(gym.Env):#(modified_gym.GoalEnv):#
             action =  1*np.square(action)
         #print(action)
         x_dot = self.obs_dict['vel'][0:3].copy()
+        #print(action)
         for k in range(10):
             self.controller.set_goal(1*action, self.x_d, self.goal_ori, 0*self.x_d_dot, \
                                  0*self.x_d_ddot, goal_force=self.f_d[:, self.i])
@@ -225,8 +232,8 @@ class PandaTrajTrack(gym.Env):#(modified_gym.GoalEnv):#
             self.change_goal()
 
         if self.stiffness_adaptation:
-            if (self.i) % 10 == 0:
-                if np.random.rand()>0.5:
+            if (self.i) % 1 == 0:
+                if np.random.rand() >= 0:
                     self.controller.virtual_ext_force = 1*np.concatenate(( \
                             np.random.uniform(low=-10, high=10, size=(3,)), np.zeros(3)))
                 else:
@@ -251,6 +258,7 @@ class PandaTrajTrack(gym.Env):#(modified_gym.GoalEnv):#
         info = {}
         if self.render_robot:
             self.robot.render()
+        #print(obs[0:3])
         return obs, reward, done, info
 
     def reset(self):

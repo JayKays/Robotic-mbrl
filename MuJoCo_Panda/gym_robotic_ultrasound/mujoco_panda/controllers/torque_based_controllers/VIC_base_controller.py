@@ -30,19 +30,19 @@ class BaseControllerVIC():
         :type config: dict, optional
         """
         self._robot = robot_object
-
+        self.frame_Skip = 1
         self.state_dict = {}
         self.new_goal = True
         self.goal_pos, self.goal_ori = self._robot.ee_pose()
         self.goal_vel = np.zeros(6)
         self.goal_acc = np.zeros(6)
         self.goal_force = np.zeros(6)
-        self.control_rate = cfg.PUBLISH_RATE if control_rate is None else control_rate
+        self.control_rate = cfg.PUBLISH_RATE
         self.M = cfg.M
         self.K = cfg.K
         self.B = cfg.B
-        self.max_num_it = kwargs.get("max_num_it",cfg.MAX_NUM_IT) + 1
-
+        self.max_num_it = cfg.MAX_NUM_IT
+        self.cartesian_force = np.zeros(6)
         self.K_full = np.zeros((6,6))
         self.Kv = cfg.K_v
         self.P = cfg.P
@@ -66,6 +66,7 @@ class BaseControllerVIC():
         self._pos_threshold = 0.025
         self._angular_threshold =  0.01
         self._cmd = self._robot.sim.data.ctrl[self._robot.actuated_arm_joints].copy()
+        self.virtual_ext_force = np.zeros(6)
         self.get_robot_states()
 
     def set_active(self, status=True):
@@ -83,6 +84,7 @@ class BaseControllerVIC():
         self._is_active = status
 
     def _compute_cmd(self):
+        print("helloooo")
         """
         Actual computation of command given the desired goal states
 
@@ -92,17 +94,24 @@ class BaseControllerVIC():
         raise NotImplementedError
 
     def _send_cmd(self):
-        now_c = time.time()
-        self._compute_cmd()
-        self._robot.set_joint_commands(
+        #now_c = time.time()
+
+        for i in range (self.frame_Skip):
+
+            self._compute_cmd()
+            #print(self._cmd)
+            self._robot.set_joint_commands(
                 self._cmd, joints=self._robot.actuated_arm_joints, compensate_dynamics=False)
-        self._robot.sim_step(render=False)
-        elapsed_c = time.time() - now_c
-        sleep_time_c = (1./self.control_rate) - elapsed_c
-        if sleep_time_c > 0.0:
-            time.sleep(sleep_time_c)
-        self.timestep = self.timestep +1
-        self.get_robot_states()
+            self._robot.sim_step(render=False)
+            self.get_robot_states()
+        #elapsed_c = time.time() - now_c
+        #print(self.control_rate)
+        #sleep_time_c = (1./self.control_rate) - elapsed_c
+        #print(elapsed_c)
+        #if sleep_time_c > 100.0:
+            #time.sleep(sleep_time_c)
+        #self.timestep = self.timestep +1
+
 
     def stop_controller_cleanly(self):
         """
@@ -121,7 +130,7 @@ class BaseControllerVIC():
         """
         change the target for the controller
         """
-
+        #print("helloooo")
         #self.timestep = timestep
         self.action = action
         self.goal_pos = goal_pos
@@ -134,6 +143,8 @@ class BaseControllerVIC():
 
 
     def reset(self):
+        self.get_robot_states()
+        self.cartesian_force = np.zeros(6)
         self.timestep = 0
         self.goal_pos, self.goal_ori = self._robot.ee_pose()
         self.goal_vel = np.zeros(6)
@@ -151,21 +162,24 @@ class BaseControllerVIC():
         self.Kd_z_hist = np.zeros(self.max_num_it)
 
     def perform_torque_Huang1992(self, M, B, K, x_d_ddot, x_d_dot, x, x_dot, p_d, F_ext_2D, jacobian, robot_inertia):
-        self.demo_data_dict["k"] = K[2, 2]
-        self.demo_data_dict["x_dot_delta"] = self.get_x_dot_delta(x_d_dot, x_dot)
-        self.demo_data_dict["delta_x"] = self.get_delta_x(x, p_d, two_dim=True)
-        self.demo_data_dict["W"] = self.get_W(jacobian, robot_inertia, inv=True)
+
         self.K_full = K.copy()
         a = np.linalg.multi_dot([jacobian.T, self.get_W(jacobian, robot_inertia, inv=True), np.linalg.inv(M)])
         b = np.array([np.dot(M, x_d_ddot)]).reshape([6, 1]) + np.array(
             [np.dot(B, self.get_x_dot_delta(x_d_dot, x_dot))]).reshape([6, 1]) + np.array(
-            [np.dot(K, 10*self.get_delta_x(x, p_d, two_dim=True))]).reshape([6, 1])
+            [np.dot(K, 1*self.get_delta_x(x, p_d, two_dim=True))]).reshape([6, 1])
         #print(self.get_delta_x(x, p_d, two_dim=True))
         #c = 0*self.torque_compensation.reshape([7, 1]) # fix
         d = (np.identity(6) - np.dot(self.get_W(jacobian, robot_inertia, inv=True), np.linalg.inv(M))).reshape([6, 6])
+        af= np.linalg.multi_dot([self.get_W(jacobian, robot_inertia, inv=True), np.linalg.inv(M)])
+        bf=b
+        df =d
+        #if self.timestep >30:
+        self.cartesian_force = np.array([np.dot(af, bf)]).reshape(6,) + \
+                               np.array([np.linalg.multi_dot([df, F_ext_2D])]).reshape(6,)
+        #print(self.cartesian_force)
         total_torque = np.array([np.dot(a, b)]).reshape([7, 1]) + np.array(
             [np.linalg.multi_dot([jacobian.T, d, F_ext_2D])]).reshape([7, 1])
-        #self.demo_data_dict["x_dot_delta"] = self.get_x_dot_delta(x_d_dot, x_dot))])
         torque = total_torque.reshape(7,)  # desired joint torque
         if np.any(np.isnan(torque)):
             torque = self._cmd.copy()
@@ -186,14 +200,19 @@ class BaseControllerVIC():
             return (np.sum(self.F_history[self.timestep-window_size+1:,:], axis=0)/window_size)
 
     def get_robot_states(self):
-        self.state_dict["pose"] = self.get_x(self.goal_ori) # x
-        self.state_dict["J"] = self._robot.jacobian() # jacobian
-        self.state_dict["FT_raw"] = np.concatenate((self._robot.get_ft_reading()[0],self._robot.get_ft_reading()[1]))
-        self.F_history[self.timestep, :] = self.state_dict["FT_raw"]
+        self.state_dict["pose"] = self.get_x(self.goal_ori.copy()) # x
+        self.state_dict["J"] = self._robot.jacobian().copy() # jacobian
+        self.state_dict["FT_raw"] = np.concatenate((self._robot.get_ft_reading()[0].copy(),\
+                                                    self._robot.get_ft_reading()[1].copy()))
+        #print(self.timestep, self.F_history)
+        self.F_history[self.timestep, :] = self.state_dict["FT_raw"].copy()
         self.state_dict["FT"] = self.force_mean_filter()
-        self.state_dict["vel"] = np.concatenate((self._robot.ee_velocity()[0],self._robot.ee_velocity()[1] ))
-        self.state_dict["M"] = self._robot.mass_matrix()
-        self.state_dict["K"] = self.K_full
+        self.state_dict["vel"] = np.concatenate((self._robot.ee_velocity()[0].copy(),\
+                                                 self._robot.ee_velocity()[1].copy() ))
+        self.state_dict["M"] = self._robot.mass_matrix().copy()
+        self.state_dict["K"] = self.K_full.copy()
+        self.state_dict['cartesian_force'] = self.cartesian_force.copy()
+
 
 
     def fetch_states(self, i, p_d ):
@@ -271,7 +290,7 @@ class BaseControllerVIC():
 
     def get_delta_x(self,x, p_d, two_dim=False):
         #print(self.goal_pos, p_d , x[:3])
-        delta_pos = p_d - x[:3]
+        delta_pos =1*( p_d - x[:3])
         delta_ori = 10*x[3:]   # check and change , hack for now,
         if two_dim == True:
             return np.array([np.append(delta_pos, delta_ori)]).reshape([6, 1])
