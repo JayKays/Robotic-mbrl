@@ -2,6 +2,7 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
+from importlib.resources import path
 import pathlib
 from typing import Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
 
@@ -602,3 +603,41 @@ def step_env_and_add_to_buffer(
     if callback:
         callback((obs, action, next_obs, reward, done))
     return next_obs, reward, done, info
+
+
+def populate_and_save_buffer(
+    env: gym.Env,
+    trajectory_length: int,
+    num_trajectories: int,
+    agent: mbrl.planning.Agent,
+    agent_kwargs: Dict,
+    replay_buffer: Optional[ReplayBuffer],
+    save_dir: Optional[str] = None,
+    trial_length: Optional[int] = None,
+    callback: Optional[Callable] = None,
+    ):
+
+
+        for _ in range(num_trajectories):
+            env.reset()
+            rollout_agent_trajectories(
+                env,
+                trajectory_length,
+                agent,
+                agent_kwargs=agent_kwargs,
+                trial_length = trial_length,
+                replay_buffer = replay_buffer,
+                callback=callback
+            )
+
+        if save_dir is not None:
+            save_path = pathlib.Path(save_dir)
+            if not save_path.exists():
+                save_path.mkdir(parents=True)
+            replay_buffer.save(save_dir)
+        
+        return replay_buffer
+
+
+
+

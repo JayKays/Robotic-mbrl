@@ -3,6 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 import os
+import copy
 from typing import Optional
 
 import gym
@@ -82,8 +83,19 @@ def train(
         print(f"Saved {num_trajectories} random trajectories to {os.path.abspath(ext_data_dir)}")
 
     ext_data = np.load(ext_data_dir + "/replay_buffer.npz")
+    
+    # -------- Create dataset for uncertainty measurments--------
+    uncertainty_buffer = mbrl.util.ReplayBuffer(
+        cfg.overrides.trial_length*cfg.overrides.num_uncertainty_trajectories,
+        obs_shape,
+        act_shape,
+        obs_type=dtype,
+        action_type=dtype,
+        reward_type=dtype,
+        rng=rng,
+    )
     uncertainty_record = {"full": np.array([]), "trial": np.array([]), "ext": np.array([])}
-
+    env_copy = copy.deepcopy(env)
     # -------- Create and populate initial env dataset --------
     dynamics_model = mbrl.util.common.create_one_dim_tr_model(cfg, obs_shape, act_shape)
     replay_buffer = mbrl.util.common.create_replay_buffer(
@@ -146,7 +158,20 @@ def train(
                 
                 full_uncertainty = mbrl.models.util.estimate_uncertainty(model_env.dynamics_model, work_dir)
                 trial_uncertainty = mbrl.models.util.estimate_uncertainty(model_env.dynamics_model, work_dir, idx=-cfg.overrides.trial_length)
-                ext_uncertainty = model_env.update_epsilon(ext_data["obs"], ext_data["action"])
+                
+                model_env.set_exploration(False)
+                uncertainty_buffer = mbrl.util.common.populate_and_save_buffer(
+                    env_copy, 
+                    cfg.overrides.num_uncertainty_trajectories,
+                    cfg.algorithm.initial_exploration_steps,
+                    mbrl.planning.RandomAgent() if cfg.overrides.random_uncertainty else agent,
+                    {},
+                    uncertainty_buffer,
+                )
+                if not cfg.overrides.agent_type == "pets": model_env.set_exploration(True)
+
+                unc_tup = uncertainty_buffer.get_all().astuple() 
+                ext_uncertainty = model_env.update_epsilon(unc_tup[0], unc_tup[1])
 
                 mbrl.models.util.log_uncertainty(
                     work_dir, 
@@ -155,6 +180,16 @@ def train(
                     trial= trial_uncertainty.cpu(), 
                     ext=ext_uncertainty.cpu()
                 )
+            
+            if env_steps % cfg.overrides.freq_model_checkpoint == 0:
+                
+                cp_dir = work_dir + f"/check_points/{env_steps}"
+                os.makedirs(cp_dir)
+                dynamics_model.save(cp_dir)
+                uncertainty_buffer.save(cp_dir)
+
+                print(f"Saved current model and uncertainty buffer")
+
 
             # start = time.time()
             # --- Doing env step using the agent and adding to model dataset ---

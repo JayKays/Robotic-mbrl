@@ -234,7 +234,7 @@ class MPPIOptimizer(Optimizer):
         self.gamma = gamma
         self.refinements = num_iterations
         self.device = device
-
+        print("MPPI "*10)
     def optimize(
         self,
         obj_fun: Callable[[torch.Tensor], torch.Tensor],
