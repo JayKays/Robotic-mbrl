@@ -164,10 +164,11 @@ def train(
                     env_copy, 
                     cfg.overrides.num_uncertainty_trajectories,
                     cfg.algorithm.initial_exploration_steps,
-                    mbrl.planning.RandomAgent() if cfg.overrides.random_uncertainty else agent,
+                    mbrl.planning.RandomAgent(env_copy) if cfg.overrides.random_uncertainty else agent,
                     {},
                     uncertainty_buffer,
                 )
+                print(len(uncertainty_buffer))
                 if not cfg.overrides.agent_type == "pets": model_env.set_exploration(True)
 
                 unc_tup = uncertainty_buffer.get_all().astuple() 
