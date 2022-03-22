@@ -76,7 +76,7 @@ def _legacy_make_env(
         elif cfg.overrides.env == "pets_reacher":
             env = mbrl.env.mujoco_envs.Reacher3DEnv()
             term_fn = mbrl.env.termination_fns.no_termination
-            reward_fn = None
+            reward_fn = mbrl.env.reward_fns.reacher
         elif cfg.overrides.env == "pets_pusher":
             env = mbrl.env.mujoco_envs.PusherEnv()
             term_fn = mbrl.env.termination_fns.no_termination

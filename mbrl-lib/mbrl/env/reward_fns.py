@@ -5,7 +5,7 @@
 import torch
 
 from . import termination_fns
-
+from .util import get_reacher_EE_pos
 
 def cartpole(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
     assert len(next_obs.shape) == len(act.shape) == 2
@@ -51,6 +51,18 @@ def pusher(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
     act_cost = 0.1 * (act ** 2).sum(axis=1)
 
     return -(obs_cost + act_cost).view(-1, 1)
+
+def reacher(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
+    assert len(next_obs.shape) == len(act.shape) == 2
+
+    goal_pos = next_obs[:,7:10]
+    ee_pos = get_reacher_EE_pos(next_obs)
+
+    obs_cost = ((goal_pos - ee_pos)**2).sum(axis=1)
+    act_cost = 0.01 * (act ** 2).sum(axis=1)
+
+    return -(obs_cost + act_cost).view(-1,1)
+
 
 def HFMC(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
     #for 5 states

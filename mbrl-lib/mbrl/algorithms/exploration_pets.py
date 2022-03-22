@@ -96,6 +96,8 @@ def train(
     )
     uncertainty_record = {"full": np.array([]), "trial": np.array([]), "ext": np.array([])}
     env_copy = copy.deepcopy(env)
+    # env_copy = env.copy()
+
     # -------- Create and populate initial env dataset --------
     dynamics_model = mbrl.util.common.create_one_dim_tr_model(cfg, obs_shape, act_shape)
     replay_buffer = mbrl.util.common.create_replay_buffer(
@@ -160,15 +162,15 @@ def train(
                 trial_uncertainty = mbrl.models.util.estimate_uncertainty(model_env.dynamics_model, work_dir, idx=-cfg.overrides.trial_length)
                 
                 model_env.set_exploration(False)
-                uncertainty_buffer = mbrl.util.common.populate_and_save_buffer(
-                    env_copy, 
-                    cfg.overrides.num_uncertainty_trajectories,
-                    cfg.algorithm.initial_exploration_steps,
-                    mbrl.planning.RandomAgent(env_copy) if cfg.overrides.random_uncertainty else agent,
-                    {},
-                    uncertainty_buffer,
+                mbrl.util.common.populate_and_save_buffer(
+                    env=env_copy, 
+                    trajectory_length=cfg.algorithm.initial_exploration_steps,
+                    num_trajectories=cfg.overrides.num_uncertainty_trajectories,
+                    agent=mbrl.planning.RandomAgent(env) if cfg.overrides.random_uncertainty else agent,
+                    agent_kwargs={},
+                    replay_buffer=uncertainty_buffer,
                 )
-                print(len(uncertainty_buffer))
+                
                 if not cfg.overrides.agent_type == "pets": model_env.set_exploration(True)
 
                 unc_tup = uncertainty_buffer.get_all().astuple() 

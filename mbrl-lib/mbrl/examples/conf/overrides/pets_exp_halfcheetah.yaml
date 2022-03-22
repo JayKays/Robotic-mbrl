@@ -11,7 +11,7 @@ agent_type: "Exploration"
 
 freq_model_checkpoint: 10000
 num_uncertainty_trajectories: 10
-random_uncertainty: false
+random_uncertainty: true
 
 
 num_elites: 5

@@ -470,7 +470,7 @@ def rollout_agent_trajectories(
 
     Rollouts trajectories in the environment using actions produced by the given agent.
     Optionally, it stores the saved data into a replay buffer.
-
+    
     Args:
         env (gym.Env): the environment to step.
         steps_or_trials_to_collect (int): how many steps of the environment to collect. If
@@ -498,6 +498,7 @@ def rollout_agent_trajectories(
     Returns:
         (list(float)): Total rewards obtained at each complete trial.
     """
+    print(type(agent))
     if (
         replay_buffer is not None
         and replay_buffer.stores_trajectories
@@ -519,6 +520,7 @@ def rollout_agent_trajectories(
         done = False
         total_reward = 0.0
         while not done:
+            
             if replay_buffer is not None:
                 next_obs, reward, done, info = step_env_and_add_to_buffer(
                     env,
@@ -617,19 +619,17 @@ def populate_and_save_buffer(
     callback: Optional[Callable] = None,
     ):
 
-
+        
         for _ in range(num_trajectories):
             env.reset()
             rollout_agent_trajectories(
                 env,
                 trajectory_length,
                 agent,
-                agent_kwargs=agent_kwargs,
-                trial_length = trial_length,
+                {},
                 replay_buffer = replay_buffer,
-                callback=callback
             )
-
+        
         if save_dir is not None:
             save_path = pathlib.Path(save_dir)
             if not save_path.exists():
