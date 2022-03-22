@@ -498,7 +498,7 @@ def rollout_agent_trajectories(
     Returns:
         (list(float)): Total rewards obtained at each complete trial.
     """
-    print(type(agent))
+
     if (
         replay_buffer is not None
         and replay_buffer.stores_trajectories
