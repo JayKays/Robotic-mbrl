@@ -1,5 +1,5 @@
 # @package _group_
-env: "gym__Walker2d-v2"
+env: "gym___Walker2d-v2"
 term_fn: "walker2d"
 reward_fn: "walker2d"
 learned_rewards: false
