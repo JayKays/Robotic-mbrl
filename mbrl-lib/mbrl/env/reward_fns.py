@@ -64,6 +64,24 @@ def reacher(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
     return -(obs_cost + act_cost).view(-1,1)
 
 
+def walker2d(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
+    assert len(next_obs.shape) == len(act.shape) == 2
+
+    height = next_obs[:,0]
+    angle = next_obs[:,1]
+    vel = next_obs[:,8]
+
+    alive = (height > 0.8) * (height < 2.0) * (angle > -1.0) * (angle < 1.0)
+    
+    alive_reward = 1.0
+    reward_run = vel
+    act_cost = 1e-3 * torch.sum(act ** 2, axis = 1)
+
+    reward = reward_run + alive_reward - act_cost
+
+    return reward.view(-1,1)
+
+
 def HFMC(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
     #for 5 states
     #assert len(next_obs.shape) == len(act.shape) == 2

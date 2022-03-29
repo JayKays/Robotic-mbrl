@@ -4,6 +4,12 @@ learned_rewards: false
 trial_length: 200
 num_steps: 5000
 
+agent_type: "Exploration"
+
+freq_model_checkpoint: 500
+num_uncertainty_trajectories: 10
+random_uncertainty: true
+
 num_elites: 5
 model_lr: 7.5e-4
 model_wd: 3e-5
@@ -13,7 +19,6 @@ freq_train_model: 50
 patience: 25
 num_epochs_train_model: 25
 
-agent_type: "pets"
 
 planning_horizon: 15
 cem_num_iters: 5
