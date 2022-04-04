@@ -65,10 +65,6 @@ class ModelExpEnv(ModelEnv):
                 explore_rewards = torch.var(means, dim=0).mean(dim=1, keepdim=True)
                 explore_rewards = self._uncertainty_map(explore_rewards)
                 rewards = self.epsilon*explore_rewards + (1 - self.epsilon)*self._reward_map(exploit_rewards)
-                print(max(exploit_rewards))
-                print(max(self._reward_map(exploit_rewards)))
-                print(max(explore_rewards))
-                print("-"*30)
 
             else:
                 rewards = exploit_rewards
