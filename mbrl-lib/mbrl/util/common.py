@@ -4,7 +4,6 @@
 # LICENSE file in the root directory of this source tree.
 import pathlib
 from typing import Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
-
 import gym.wrappers
 import hydra
 import numpy as np
@@ -86,6 +85,8 @@ def create_one_dim_tr_model(
 
     # Now instantiate the model
     model = hydra.utils.instantiate(cfg.dynamics_model)
+    print(model)
+    #s
 
     name_obs_process_fn = cfg.overrides.get("obs_process_fn", None)
     if name_obs_process_fn:
@@ -601,11 +602,14 @@ def step_env_and_add_to_buffer(
 
 
     ext_act =  env.get_external_states()
+    prev_act = env.get_action()
     #print("ext_act: ", ext_actions)
     if ext_actions:
-        action = agent.act(agent_obs, ext_act, **agent_kwargs)
+        action = agent.act(agent_obs, ext_act, prev_act, **agent_kwargs)
     else:
-        action = agent.act(agent_obs, None, **agent_kwargs)
+        #print("hello,", ext_actions)
+        action = agent.act(agent_obs, None, prev_act, **agent_kwargs)
+
     #print(action)
     next_obs, reward, done, info = env.step(action)
     if ext_actions:

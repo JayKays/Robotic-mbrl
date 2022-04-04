@@ -12,6 +12,7 @@ ADD_NOISE = True
 NOISE_FRACTION = 0.015 #standard deviation of the noise is now 1.5 % of the force-value
 
 Fd = 10
+ROBOT_CONTROL_RATE = 10
 PUBLISH_RATE = 10
 duration = 5
 z_max = 0.584#5.91776e-01
@@ -44,7 +45,7 @@ GAMMA_K_INIT = 0.0005/10#10**(-2) #never applied
 # parameters of stiffness and damping matrices
 Kp =  2000#10000#1250
 #Kpz = 1000#300#20#35#50 #initial value (adaptive)
-Ko = 0#25000#5000#1500#900
+Ko = 0#10000#25000#5000#1500#900
 
 Bp = 2*np.sqrt(Kp)#700/4
 #Bpz = np.sqrt(Kpz)#10 # #initial value (adaptive)

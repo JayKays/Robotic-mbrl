@@ -46,7 +46,7 @@ def rollout_model_and_populate_sac_buffer(
     accum_dones = np.zeros(initial_obs.shape[0], dtype=bool)
     obs = initial_obs
     for i in range(rollout_horizon):
-        action = agent.act(obs, sample=sac_samples_action, batched=True)
+        action = agent.act(obs,None, None, sample=sac_samples_action, batched=True)
         pred_next_obs, pred_rewards, pred_dones, model_state = model_env.step(
             action, model_state, sample=True
         )
@@ -75,7 +75,7 @@ def evaluate(
         done = False
         episode_reward = 0
         while not done:
-            action = agent.act(obs)
+            action = agent.act(obs, None, None)
             obs, reward, done, _ = env.step(action)
             video_recorder.record(env)
             episode_reward += reward
@@ -122,10 +122,19 @@ def train(
 
     obs_shape = env.observation_space.shape
     act_shape = env.action_space.shape
+    ext_actions = cfg.overrides.get("uncontrolled_states", False)
+    if (ext_actions):
+        ext_act_shape = np.shape(env.get_external_states())[0]
+        act_shape = list(act_shape)
+        act_shape[0] += ext_act_shape
+        act_shape = tuple(act_shape)
 
     mbrl.planning.complete_agent_cfg(env, cfg.algorithm.agent)
     agent = hydra.utils.instantiate(cfg.algorithm.agent)
-
+    #if cfg.overrides.get("load_agent"):
+       # agent_path = cfg.overrides.get("agent_dir")
+        #print("loading agent from ", agent_path)
+        #agent = mbrl.planning.load_agent(agent_path, env)
     work_dir = work_dir or os.getcwd()
     # enable_back_compatible to use pytorch_sac agent
     logger = mbrl.util.Logger(work_dir, enable_back_compatible=True)
@@ -143,8 +152,13 @@ def train(
     if cfg.seed is not None:
         torch_generator.manual_seed(cfg.seed)
 
+    if cfg.overrides.get("load_model"):
+        model_path = cfg.overrides.get("model_dir")
+        print("laoding model from ", model_path)
+    else:
+        model_path = None
     # -------------- Create initial overrides. dataset --------------
-    dynamics_model = mbrl.util.common.create_one_dim_tr_model(cfg, obs_shape, act_shape)
+    dynamics_model = mbrl.util.common.create_one_dim_tr_model(cfg, obs_shape, act_shape,  model_dir=model_path)
     use_double_dtype = cfg.algorithm.get("normalize_double_precision", False)
     dtype = np.double if use_double_dtype else np.float32
     replay_buffer = mbrl.util.common.create_replay_buffer(
@@ -159,7 +173,7 @@ def train(
     random_explore = cfg.algorithm.random_initial_explore
     mbrl.util.common.rollout_agent_trajectories(
         env,
-        cfg.algorithm.initial_exploration_steps,
+        cfg,
         mbrl.planning.RandomAgent(env) if random_explore else agent,
         {} if random_explore else {"sample": True, "batched": False},
         replay_buffer=replay_buffer,
@@ -208,7 +222,7 @@ def train(
                 obs, done = env.reset(), False
             # --- Doing env step and adding to model dataset ---
             next_obs, reward, done, _ = mbrl.util.common.step_env_and_add_to_buffer(
-                env, obs, agent, {}, replay_buffer
+                env, obs, ext_actions, agent, {}, replay_buffer
             )
 
             # --------------- Model Training -----------------

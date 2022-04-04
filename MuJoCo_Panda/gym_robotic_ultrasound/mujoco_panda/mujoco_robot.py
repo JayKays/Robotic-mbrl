@@ -81,8 +81,8 @@ class MujocoRobot(object):
         else:
             self._ft_site_name = False
 
-        self._mutex = Lock()
-        self._asynch_thread_active = False
+        #self._mutex = Lock()
+        #self._asynch_thread_active = False
 
 
         self._forwarded = False
@@ -188,6 +188,7 @@ class MujocoRobot(object):
             if not self._forwarded:
                 self.forward_sim()
             sensordata = -self._sim.data.sensordata.copy() # change sign to make force relative to parent body
+            #print(sensordata)
             if in_global_frame:
                 if self._ft_site_name:
                     new_sensordata = np.zeros(6)
@@ -495,8 +496,8 @@ class MujocoRobot(object):
         assert cmd.shape[0] == actuator_ids.shape[0]
         #print("setting torqueee", actuator_ids)
         #print(cmd)
-        #print(actuator_ids)
         self._sim.data.ctrl[actuator_ids] = cmd
+
         #time.sleep(0.5)
 
     def hard_set_joint_positions(self, values, indices=None):
@@ -528,11 +529,12 @@ class MujocoRobot(object):
         :param render: flag to forward the renderer as well, defaults to True
         :type render: bool, optional
         """
-
+        #b= self._sim.data.ctrl.copy()
         for f_id in self._pre_step_callables:
             self._pre_step_callables[f_id][0](
                 *self._pre_step_callables[f_id][1])
         self._sim.step()
+        #print(b - self._sim.data.ctrl)
         #print("step execuyted")
         # if self._first_step_not_done:
         #     self._first_step_not_done = False
@@ -546,6 +548,7 @@ class MujocoRobot(object):
 
         if render:
             self.render()
+        #print(self._sim.data.ctrl)
 
     def forward_sim(self):
         """

@@ -34,7 +34,7 @@ class VIC(BaseControllerVIC):
         #super(VIC,self).__init__(robot_object, config)
         self.demo_data_dict = {}
         self.demo_data = []
-        self.delta_K = np.zeros((6, 6))
+        self.delta_K = cfg.K.copy()
         self.B_hat_lower = cfg.B_hat_lower
         self.B_hat_upper = cfg.B_hat_upper
         self.K_hat_lower = cfg.K_hat_lower
@@ -52,26 +52,31 @@ class VIC(BaseControllerVIC):
         #self.gamma[8, 8] = self.action[0]  # gamma B
         #print(self.action)
         #print("helooooo")
-        self.delta_K[0,0] = self.action[0] * 2000 # gamma K
-        self.delta_K[1, 1] = self.action[1] * 2000
-        self.delta_K[2, 2] = self.action[2] * 2000
+        self.delta_K[0,0] = self.action[0]  # gamma K
+        self.delta_K[1, 1] = self.action[1]
+        self.delta_K[2, 2] = self.action[2]
 
         x, x_dot, delta_x, jacobian, robot_inertia, F_ext_2D = \
                                     self.fetch_states(self.timestep,  self.goal_pos)
-
         K_hat, B_hat = self.update_MBK(self.delta_K)
+
         #print(np.diag(K_hat)[0:3])
+
         self.perform_torque_Huang1992(self.M, B_hat, K_hat, self.goal_acc, self.goal_vel, x, \
-                    x_dot, self.goal_pos,  F_ext_2D + self.virtual_ext_force.reshape([6,1]), jacobian, robot_inertia)
+                    x_dot, self.goal_pos, F_ext_2D + self.virtual_ext_force.reshape([6,1]), jacobian, robot_inertia)
+
+        if (self._robot._has_gripper):
+            self._cmd = np.concatenate((self._cmd, np.array([0.0, 0.0])))
 
     def reset(self):
         super().reset()
         self.timestep = 0
-        self.delta_K = np.zeros((6,6))
+        #self.delta_K = np.zeros((6,6))
 
     def update_MBK(self, delta_K,):
         if self.adaptation:
             K = self.K.copy() + delta_K
+            #print("adapting stiffness")
         else:
             K = delta_K
         K = np.clip(K, self.K_hat_lower, self.K_hat_upper)
@@ -81,6 +86,7 @@ class VIC(BaseControllerVIC):
         B = np.clip(B, self.B_hat_lower, self.B_hat_upper)
         #self.K = K.copy()
         #self.B = B.copy()
+        #print(np.diag(K)[:3])
         return K,B
 
  #Not used in this impelenmnetatin , used for collecting demo data in the threading based version

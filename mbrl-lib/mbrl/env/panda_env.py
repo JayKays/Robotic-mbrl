@@ -69,11 +69,13 @@ class PandaTrajTrack(gym.Env):#(modified_gym.GoalEnv):#
                 self.action_space = spaces.Box(low=np.array([cfg.DELTA_K_LOWER, cfg.DELTA_K_LOWER, cfg.DELTA_K_LOWER]), \
                                      high=np.array([cfg.DELTA_K_UPPER, cfg.DELTA_K_UPPER, cfg.DELTA_K_UPPER]))
 
+        obs = self.get_obs()
+        low = np.full(obs.shape, -float("inf"), dtype=np.float32)
+        high = np.full(obs.shape, float("inf"), dtype=np.float32)
+        self.observation_space = spaces.Box(low, high, dtype=obs.dtype)
         #self.observation_space = spaces.Box(
             #low=np.array([cfg.LOWER_Fz, cfg.LOWER_Z_ERROR, cfg.LOWER_Kz, cfg.LOWER_Fz]), \
             #high=np.array([cfg.UPPER_Fz, cfg.UPPER_Z_ERROR, cfg.UPPER_Kz, cfg.UPPER_Fz]))
-        self.stiffness_adaptation   = True
-        self.controller.adaptation = self.stiffness_adaptation
         self.fixed_traj = False
         self.random_traj = True
         self.timestep = cfg.T
@@ -95,25 +97,11 @@ class PandaTrajTrack(gym.Env):#(modified_gym.GoalEnv):#
                                                         self.robot, self.max_num_it+1, cfg.T,move_in_x=True)
         self.pert_type = pert_type
         self.n_actions = n_actions
-        #print("actual goal", self.x_d[1, :])
-        #plt.plot(self.traj[2, :])
-        #plt.show()
         self.i = 0
-        #self.log_dir = os.getcwd() if cfg.LOG and log_dir is None else log_dir
-        #self.log_dict = {}
-        # print("mass: ", p.mass_matrix())
-        self.x_d = np.zeros(3)
-        self.pose = self.x_d.copy()
+        self.x_d = np.asarray(self.robot.ee_pose()[0].copy())
         self.x_d_dot = np.zeros(6)
         self.x_d_ddot = np.zeros(6)
         self.obs_dict = self.controller.state_dict.copy()
-        obs = self.get_obs()
-        low = np.full(obs.shape, -float("inf"), dtype=np.float32)
-        high = np.full(obs.shape, float("inf"), dtype=np.float32)
-        self.observation_space = spaces.Box(low, high, dtype=obs.dtype)
-        #self.observation_space = spaces.Dict(dict(
-           # observation=spaces.Box(-np.inf, np.inf, shape=obs.shape, dtype='float32'),
-        #))
         self.reset()
     # activate controller (simulation step and controller thread now running)
 
@@ -146,7 +134,7 @@ class PandaTrajTrack(gym.Env):#(modified_gym.GoalEnv):#
         self.obs_dict = self.controller.state_dict.copy()
         self.obs_dict['FT'] += self.controller.virtual_ext_force.copy()
         self.obs_dict['ext_force'] = self.controller.virtual_ext_force.copy()
-        if not self.stiffness_adaptation:
+        if self.stiffness_adaptation:
             #state = np.abs(self.controller.virtual_ext_force.copy()[0:3])
             state = np.concatenate((self.x_d - np.array(self.obs_dict["pose"][0:3].copy()), \
                        np.array(self.obs_dict["vel"][0:3].copy()), self.controller.virtual_ext_force.copy()[0:3]))
@@ -220,7 +208,7 @@ class PandaTrajTrack(gym.Env):#(modified_gym.GoalEnv):#
         #print(action)
         #action = np.ones(3)
         if not self.stiffness_adaptation:
-            action =  1*np.square(action)
+            action =  3000*np.square(action)
         #print(action)
         x_dot = self.obs_dict['vel'][0:3].copy()
         #print(action)
@@ -228,10 +216,11 @@ class PandaTrajTrack(gym.Env):#(modified_gym.GoalEnv):#
             self.controller.set_goal(1*action, self.x_d, self.goal_ori, 0*self.x_d_dot, \
                                  0*self.x_d_ddot, goal_force=self.f_d[:, self.i])
             self.controller._send_cmd()
-            self.controller.get_robot_states()
-            self.change_goal()
+            self.robot.render()
+            #self.controller.get_robot_states()
+            #self.change_goal()
 
-        if self.stiffness_adaptation:
+        if not self.stiffness_adaptation:
             if (self.i) % 1 == 0:
                 if np.random.rand() >= 0:
                     self.controller.virtual_ext_force = 1*np.concatenate(( \
@@ -245,9 +234,7 @@ class PandaTrajTrack(gym.Env):#(modified_gym.GoalEnv):#
         self.change_goal()
         obs = self.get_obs()
         x_ddot = self.robot_acceleration(x_dot)
-        #state = obs#['observation']
         pose = self.obs_dict['pose'][0:3].copy()
-        #k = state[6:9]
         if (self.i > self.max_num_it-2):
             #print("doneeeeeee")
             done = True#(self.iteration >= self.max_num_it)
@@ -269,11 +256,6 @@ class PandaTrajTrack(gym.Env):#(modified_gym.GoalEnv):#
             #self.robot.render()
         self.robot.hard_set_joint_positions(self.init_jpos)
         self.robot.sim_step()
-        #time.sleep(1)
-        #self.robot.hard_set_joint_positions(self.init_jpos)
-        #self.robot.sim_step()
-        #print(self.robot.ee_pose())
-        #print("resetting the controller")
         self.controller.reset()
         self.obs_dict = self.controller.state_dict.copy()
         if self.fixed_traj:

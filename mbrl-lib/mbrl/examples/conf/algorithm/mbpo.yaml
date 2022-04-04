@@ -19,7 +19,7 @@ agent:
   _target_: mbrl.third_party.pytorch_sac.agent.sac.SACAgent
   obs_dim: ??? # to be specified later
   action_dim: ??? # to be specified later
-  action_range: ??? # to be specified later
+  action_range:  ${overrides.action_range} # to be specified later
   device: ${device}
   critic_cfg: ${algorithm.double_q_critic}
   actor_cfg: ${algorithm.diag_gaussian_actor}

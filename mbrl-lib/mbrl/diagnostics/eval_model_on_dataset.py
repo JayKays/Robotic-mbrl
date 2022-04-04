@@ -27,11 +27,12 @@ class DatasetEvaluator:
         self.reward_fn = reward_fn
         obs_shape = self.env.observation_space.shape
         act_shape = self.env.action_space.shape
-
-        if self.env.stiffness_adaptation:
-            act_passive_shape = 3
+        ext_actions = self.cfg.overrides.get("uncontrolled_states", False)
+        # print("ext_act: ", ext_actions)
+        if (ext_actions is True):
+            ext_act_shape = np.shape(self.env.get_external_states())[0]
             act_shape = list(act_shape)
-            act_shape[0] += act_passive_shape
+            act_shape[0] += ext_act_shape
             act_shape = tuple(act_shape)
         self.dynamics_model = mbrl.util.common.create_one_dim_tr_model(
             self.cfg,
@@ -116,7 +117,7 @@ class DatasetEvaluator:
 
 
 if __name__ == "__main__":
-    dir = "/home/akhil/PhD/RoL/Robotic-mbrl/mbrl-lib/mbrl/examples/exp/pets/default/panda_env/2022.03.15/175818"
+    dir = "/home/akhil/PhD/RoL/Robotic-mbrl/mbrl-lib/exp/pets/default/panda_reacher_cartesian_env/2022.04.04/171120"
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_dir", type=str, default=dir)
     parser.add_argument("--dataset_dir", type=str, default=dir)

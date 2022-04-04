@@ -93,7 +93,7 @@ def generate_desired_trajectory_tc(robot, max_num_it,T,move_in_x=False, move_dow
     #robot.reset()
     p[:,0] = robot.ee_pose()[0]
     #p[2,0] =  p[2,0]
-    #p[2, 0] = p[2, 0] + 0.1
+    p[2, 0] = p[2, 0] - 0.0001
     
     if move_down:
         a[2,0:int(max_num_it/75)]=-0.25
@@ -101,10 +101,10 @@ def generate_desired_trajectory_tc(robot, max_num_it,T,move_in_x=False, move_dow
 
 
     if move_in_x:
-        a[1,int(max_num_it*0/10):int(max_num_it*5/10)]= 0.5#25
-        a[1,int(max_num_it*5/10):int(max_num_it*10/10)]=-0.5#25
-        a[0, int(max_num_it * 0 / 10):int(max_num_it * 5 / 10)] = 0.5
-        a[0, int(max_num_it * 5 / 10):int(max_num_it * 10 / 10)] = -0.5
+        a[1,int(max_num_it*1/10):int(max_num_it*5/10)]= 0.01#25
+        a[1,int(max_num_it*5/10):int(max_num_it*9/10)]=-0.01#25
+        a[0, int(max_num_it * 1 / 10):int(max_num_it * 5 / 10)] = 0.01
+        a[0, int(max_num_it * 5 / 10):int(max_num_it * 9 / 10)] = -00.01
         #a[0, int(max_num_it * 3 / 10):int(max_num_it * 4 / 10)] = 0.5
         #a[0, int(max_num_it * 7 / 10):int(max_num_it * 8 / 10)] = -0.5
 

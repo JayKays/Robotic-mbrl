@@ -19,4 +19,8 @@ only change is that the force applied is multiplied by an action in the range (-
 * `pets_halfcheetah`, `pets_cartpole`, `pets_reacher`, and `pets_pusher` are the 
 environments used in the original PETS paper, which include some observation 
   pre-processing functions.
+* adding new environments: 
+  * add reward and termination functions 
+  * include it in the `utils.env` file
+  * make and overrides file for the env
     

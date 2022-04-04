@@ -47,17 +47,16 @@ def pusher(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
 
     return -(obs_cost + act_cost).view(-1, 1)
 
-def HFMC(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
+def ultrasound(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
     #for 5 states
     #assert len(next_obs.shape) == len(act.shape) == 2
     #reward_ctrl = -0.1 * act.square().sum(dim=1)
-    Fd = torch.tensor([3]).to(next_obs.device)
-    F_reward = next_obs[:, :1] - Fd
-    F_reward = torch.exp(-torch.sum(3*F_reward ** 2, dim=1))
-    x_reward = torch.exp(-torch.sum((300*next_obs[:,3:4] ** 2), dim=1))#np.exp(-np.square(next_obs[3]))
-    y_reward = torch.exp(-torch.sum((300*next_obs[:,4:5] ** 2), dim=1))#np.exp(-np.square(self.state[4]))
-    #print(reward.size())
-    reward = 0.5*F_reward + 0.4*x_reward + 0.1*y_reward
+    Fd = torch.tensor([100]).to(next_obs.device)
+    F_reward = (next_obs[:, 2] - Fd) ** 2
+    #F_reward = torch.exp(-torch.sum(3*F_reward ** 2, dim=1))
+    pose_reward = torch.sum((100 * next_obs[:, 3:5] ** 2), dim=1)
+    act_cost = 0 * (act ** 2).sum(axis=1)
+    reward = -(0*F_reward + 1*pose_reward + 0*act_cost)
 
     #print(reward.view(-1, 1))
     return (reward).view(-1, 1)
@@ -80,4 +79,29 @@ def panda_traj_tracking(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tens
     act_cost = 0 * (act ** 2).sum(axis=1)
     #reward = torch.exp(-torch.sum((10*next_obs[:,0:3] ** 2), dim=1))#np.exp(-np.square(next_obs[3]))
     reward  = -(1*obs_cost + 1*act_cost)
+    return reward.view(-1, 1)
+
+def panda_reacher_cartesian(act: torch.Tensor, next_obs: torch.Tensor, pre_obs: torch.Tensor,  pre_act: torch.Tensor ) -> torch.Tensor:
+    #for 5 states
+    #assert len(next_obs.shape) == len(act.shape) == 2
+    #reward_ctrl = -0.1 * act.square().sum(dim=1)
+    #print(act.size())
+    obs_cost = torch.sum((100 * next_obs[:, 0:3] ** 2), dim=1)
+    obs_cost = 100 * torch.sum(torch.square((act[:, 3:6] + pre_obs[:, 0:3] - next_obs[:, 0:3])), dim= 1)
+    #print(obs_cost)
+    #obs_cost = 10*next_obs[:,0:3].abs().sum(axis=1)
+    #print(next_obs[:, 3:6], pre_obs)
+    acc_cost = torch.sum((100*(next_obs[:, 3:6]-pre_obs[:,3:6])**2), dim= 1)
+    #print(next_obs[:, 3:6]-pre_obs[:,3:6])
+    #print("acc_cost ", acc_cost)
+    #print("obs_cost ", obs_cost)
+    #print(pre_obs.size())
+    if pre_act is not None:
+        smooth_cost = torch.sum((1*(act[:, 0:3]-pre_act[:,0:3])**2), dim= 1)
+        #print(smooth_cost,obs_cost)
+    else:
+        smooth_cost = 0
+    act_cost = 0 * (act[:,0:3] ** 2).sum(axis=1)
+    reward  = -(1*obs_cost + 1*act_cost + 0 * acc_cost + 0*smooth_cost)
+    #print("reward:", reward)
     return reward.view(-1, 1)

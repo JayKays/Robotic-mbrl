@@ -11,3 +11,4 @@ from .pets_pusher import PusherEnv
 from .pets_reacher import Reacher3DEnv
 from .ultrasound_env import UltrasoundEnv, make_ultrasound_env
 from .panda_env import PandaTrajTrack, make_panda_env
+from .panda_reacher_cartesian import PandaReacherCartesian, make_panda_reacher_cartesian_env
