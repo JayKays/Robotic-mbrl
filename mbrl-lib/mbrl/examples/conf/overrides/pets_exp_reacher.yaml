@@ -11,6 +11,8 @@ freq_model_checkpoint: 600
 num_uncertainty_trajectories: 10
 random_uncertainty: true
 
+reward_map: "reacher_reward_map"
+
 num_elites: 5
 model_lr: 4e-4
 model_wd: 1.7e-4

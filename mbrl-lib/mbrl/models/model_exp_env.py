@@ -9,6 +9,7 @@ import numpy as np
 import torch
 
 import mbrl.types
+import mbrl.util.math
 from . import Model, ModelEnv
 
 class ModelExpEnv(ModelEnv):
@@ -31,14 +32,23 @@ class ModelExpEnv(ModelEnv):
         reward_fn: Optional[mbrl.types.RewardFnType] = None,
         generator: Optional[torch.Generator] = None,
         exploration: bool = True,
-        init_epsilon: float = .5
+        init_epsilon: float = .5,
+        uncertainty_map: str = None,
+        reward_map: str = None
     ):
 
         super().__init__(env, model, termination_fn, reward_fn, generator)
         self.exploration = exploration
         self.epsilon = init_epsilon
         self.max_uncertainty = -1
-    
+
+        if reward_map is not None:
+            print(reward_map)
+            self._reward_map = getattr(mbrl.util.math, reward_map, self._reward_map)
+        
+        if uncertainty_map is not None:
+            self._uncertainty_map = getattr(mbrl.util.math, uncertainty_map, self._uncertainty_map)
+        
     def step(
         self,
         actions: mbrl.types.TensorType,
@@ -54,7 +64,11 @@ class ModelExpEnv(ModelEnv):
                 means, _ = self.dynamics_model.forward(model_in, use_propagation=False)
                 explore_rewards = torch.var(means, dim=0).mean(dim=1, keepdim=True)
                 explore_rewards = self._uncertainty_map(explore_rewards)
-                rewards = self.epsilon*explore_rewards + (1 - self.epsilon)*exploit_rewards
+                rewards = self.epsilon*explore_rewards + (1 - self.epsilon)*self._reward_map(exploit_rewards)
+                print(max(exploit_rewards))
+                print(max(self._reward_map(exploit_rewards)))
+                print(max(explore_rewards))
+                print("-"*30)
 
             else:
                 rewards = exploit_rewards
@@ -71,10 +85,11 @@ class ModelExpEnv(ModelEnv):
         self.exploration = not self.exploration
     
     def _uncertainty_map(self, value):
-        "Maps a value to (0,1) interval"
-
         # return torch.tanh(1e-3*value)
         return torch.log1p(value)
+    
+    def _reward_map(self, value):
+        return value
     
     def set_exploration(self, exploration: bool):
         self.exploration = exploration

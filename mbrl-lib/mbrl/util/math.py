@@ -424,3 +424,7 @@ def quantize_obs(
             *obs.shape
         )
     return quantized_obs
+
+
+def reacher_reward_map(x: torch.Tensor):
+    return 30*torch.exp(3*x)

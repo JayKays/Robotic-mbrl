@@ -121,8 +121,15 @@ def train(
     # ---------------------------------------------------------
     # ---------- Create model environment and agent -----------
     model_env = mbrl.models.ModelExpEnv(
-        env, dynamics_model, termination_fn, reward_fn, generator=torch_generator
+        env, 
+        dynamics_model, 
+        termination_fn, 
+        reward_fn, 
+        generator=torch_generator, 
+        uncertainty_map=cfg.overrides.get("uncertainty_map", None),
+        reward_map=cfg.overrides.get("reward_map", None),
     )
+
     model_trainer = mbrl.models.ModelTrainer(
         dynamics_model,
         optim_lr=cfg.overrides.model_lr,
