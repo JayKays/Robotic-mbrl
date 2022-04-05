@@ -104,6 +104,16 @@ def _legacy_make_env(
             env = mbrl.env.mujoco_envs.make_panda_reacher_cartesian_env(cfg)
             term_fn = mbrl.env.termination_fns.no_termination
             reward_fn = mbrl.env.reward_fns.panda_reacher_cartesian
+        elif cfg.overrides.env == "panda_tray_env":
+            # env = mbrl.env.mujoco_envs.UltrasoundEnv()
+            env = mbrl.env.mujoco_envs.make_panda_tray_env(cfg)
+            term_fn = mbrl.env.termination_fns.no_termination
+            reward_fn = mbrl.env.reward_fns.panda_tray
+        elif cfg.overrides.env == "panda_push_env":
+            # env = mbrl.env.mujoco_envs.UltrasoundEnv()
+            env = mbrl.env.mujoco_envs.make_panda_push_env(cfg)
+            term_fn = mbrl.env.termination_fns.no_termination
+            reward_fn = mbrl.env.reward_fns.panda_pusher
         else:
             raise ValueError("Invalid environment string.")
         env = gym.wrappers.TimeLimit(

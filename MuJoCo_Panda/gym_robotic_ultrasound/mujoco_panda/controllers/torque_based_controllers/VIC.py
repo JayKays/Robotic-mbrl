@@ -3,7 +3,7 @@ from .configs import BASIC_HYB_CONFIG
 import numpy as np
 import quaternion
 import time
-from mujoco_panda.controllers.torque_based_controllers import VIC_config as cfg
+#from mujoco_panda.controllers.torque_based_controllers import VIC_config as cfg
 from mujoco_panda.controllers.torque_based_controllers.VIC_base_controller import BaseControllerVIC
 
 
@@ -20,7 +20,7 @@ class VIC(BaseControllerVIC):
     
     """
 
-    def __init__(self, robot_object, control_rate=None, *args, **kwargs):
+    def __init__(self, robot_object, cfg, control_rate=None, *args, **kwargs):
         """
         contstructor
 
@@ -30,7 +30,7 @@ class VIC(BaseControllerVIC):
             BASIC_HYB_CONFIG (see config for reference)
         :type config: dict, optional
         """
-        super().__init__(robot_object)
+        super().__init__(robot_object, cfg)
         #super(VIC,self).__init__(robot_object, config)
         self.demo_data_dict = {}
         self.demo_data = []

@@ -212,7 +212,7 @@ def run(cfg: omegaconf.DictConfig):
     dataset_dir = dir
     results_dir = dir
     model_path = pathlib.Path(model_dir)
-    ext_conf = False
+    ext_conf = True
     if not ext_conf:
         cfg = mbrl.util.common.load_hydra_cfg(model_path)
     env, term_fn, reward_fn = mbrl.util.env.EnvHandler.make_env(cfg)

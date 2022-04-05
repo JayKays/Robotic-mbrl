@@ -1,7 +1,7 @@
 from mujoco_panda.utils.tf import quatdiff_in_euler
 from .configs import BASIC_HYB_CONFIG
 #import VIC_config as cfg
-from mujoco_panda.controllers.torque_based_controllers import VIC_config as cfg
+#from mujoco_panda.controllers.torque_based_controllers import VIC_config as cfg
 import numpy as np
 import quaternion
 import time
@@ -19,7 +19,7 @@ class BaseControllerVIC():
     
     """
 
-    def __init__(self, robot_object,  control_rate=None, *args, **kwargs):
+    def __init__(self, robot_object, cfg,  control_rate=None, *args, **kwargs):
         """
         contstructor
 

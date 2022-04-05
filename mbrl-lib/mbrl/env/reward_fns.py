@@ -86,8 +86,8 @@ def panda_reacher_cartesian(act: torch.Tensor, next_obs: torch.Tensor, pre_obs: 
     #assert len(next_obs.shape) == len(act.shape) == 2
     #reward_ctrl = -0.1 * act.square().sum(dim=1)
     #print(act.size())
-    obs_cost = torch.sum((100 * next_obs[:, 0:3] ** 2), dim=1)
-    obs_cost = 100 * torch.sum(torch.square((act[:, 3:6] + pre_obs[:, 0:3] - next_obs[:, 0:3])), dim= 1)
+    #obs_cost = torch.sum((100 * next_obs[:, 0:3] ** 2), dim=1)
+    obs_cost = 1 * torch.sum(torch.square(100*(act[:, 3:6] + pre_obs[:, 0:3] - next_obs[:, 0:3])), dim= 1)
     #print(obs_cost)
     #obs_cost = 10*next_obs[:,0:3].abs().sum(axis=1)
     #print(next_obs[:, 3:6], pre_obs)
@@ -101,7 +101,31 @@ def panda_reacher_cartesian(act: torch.Tensor, next_obs: torch.Tensor, pre_obs: 
         #print(smooth_cost,obs_cost)
     else:
         smooth_cost = 0
-    act_cost = 0 * (act[:,0:3] ** 2).sum(axis=1)
+    act_cost = 1 * (act[:,0:3] ** 2).sum(axis=1)
+    reward  = -(1*obs_cost + 1*act_cost + 0 * acc_cost + 0*smooth_cost)
+    #print("reward:", reward)
+    return reward.view(-1, 1)
+
+def panda_tray(act: torch.Tensor, next_obs: torch.Tensor, pre_obs: torch.Tensor,  pre_act: torch.Tensor ) -> torch.Tensor:
+    obs_cost = 1 * torch.sum(torch.square(1000*(act[:, 3:6] + pre_obs[:, 0:3] - next_obs[:, 0:3])), dim= 1)
+    acc_cost = torch.sum((1000*(next_obs[:, 3:6]-pre_obs[:,3:6])**2), dim= 1)
+    if pre_act is not None:
+        smooth_cost = torch.sum((1*(act[:, 0:3]-pre_act[:,0:3])**2), dim= 1)
+    else:
+        smooth_cost = 0
+    act_cost = 1 * (act[:,0:3] ** 2).sum(axis=1)
+    reward  = -(1*obs_cost + 1*act_cost + 0 * acc_cost + 0*smooth_cost)
+    #print("reward:", reward)
+    return reward.view(-1, 1)
+
+def panda_pusher(act: torch.Tensor, next_obs: torch.Tensor, pre_obs: torch.Tensor,  pre_act: torch.Tensor ) -> torch.Tensor:
+    obs_cost = 1 * torch.sum(torch.square(1000*(act[:, 3:6] + pre_obs[:, 0:3] - next_obs[:, 0:3])), dim= 1)
+    acc_cost = torch.sum((1000*(next_obs[:, 3:6]-pre_obs[:,3:6])**2), dim= 1)
+    if pre_act is not None:
+        smooth_cost = torch.sum((1*(act[:, 0:3]-pre_act[:,0:3])**2), dim= 1)
+    else:
+        smooth_cost = 0
+    act_cost = 1 * (act[:,0:3] ** 2).sum(axis=1)
     reward  = -(1*obs_cost + 1*act_cost + 0 * acc_cost + 0*smooth_cost)
     #print("reward:", reward)
     return reward.view(-1, 1)
