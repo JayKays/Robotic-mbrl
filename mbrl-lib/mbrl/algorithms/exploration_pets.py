@@ -195,7 +195,7 @@ def train(
                         ),
                         cfg.overrides.num_steps/10
                     ))
-                    
+
                     print(f"New uncertainty sample frequency: {uncertainty_datasample_freq}")
                     print("Uncertainty data updated\n", "-"*30)
 
@@ -223,7 +223,7 @@ def train(
             # start = time.time()
             # --- Doing env step using the agent and adding to model dataset ---
             next_obs, reward, done, _ = mbrl.util.common.step_env_and_add_to_buffer(
-                env, obs, mbrl.planning.RandomAgent(env), {}, replay_buffer
+                env, obs, agent, {}, replay_buffer
             )
 
             obs = next_obs
