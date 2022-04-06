@@ -10,7 +10,7 @@ agent_type: "Exploration"
 # agent_type: "pets"
 
 freq_model_checkpoint: 10000
-num_uncertainty_trajectories: 10
+num_uncertainty_trajectories: 3
 random_uncertainty: true
 
 
@@ -24,9 +24,9 @@ freq_train_model: 1000
 patience: 12
 num_epochs_train_model: 12
 
-planning_horizon: 15
+planning_horizon: 300
 cem_num_iters: 5
 cem_elite_ratio: 0.16
-cem_population_size: 200
+cem_population_size: 300
 cem_alpha: 0.12
 cem_clipped_normal: false
