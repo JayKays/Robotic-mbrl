@@ -615,12 +615,11 @@ def populate_and_save_buffer(
     agent_kwargs: Dict,
     replay_buffer: Optional[ReplayBuffer],
     save_dir: Optional[str] = None,
-    trial_length: Optional[int] = None,
     callback: Optional[Callable] = None,
     ):
 
         
-        for _ in range(num_trajectories):
+        for i in range(num_trajectories):
             env.reset()
             rollout_agent_trajectories(
                 env,
@@ -629,7 +628,10 @@ def populate_and_save_buffer(
                 {},
                 replay_buffer = replay_buffer,
             )
-        
+            print(f"Sampled {i+1} of {num_trajectories} trajectories")
+
+
+
         if save_dir is not None:
             save_path = pathlib.Path(save_dir)
             if not save_path.exists():

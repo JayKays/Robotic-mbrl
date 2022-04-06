@@ -218,7 +218,7 @@ def estimate_uncertainty(model, data_dir, idx = 0):
 
     obs = dataset["obs"][idx:]
     act = dataset["action"][idx:]
-
+    
     with torch.no_grad():
             model_in = model._get_model_input(obs, act)
             means, _ = model.forward(model_in, use_propagation=False)

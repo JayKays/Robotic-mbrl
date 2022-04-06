@@ -32,7 +32,7 @@ class ModelExpEnv(ModelEnv):
         reward_fn: Optional[mbrl.types.RewardFnType] = None,
         generator: Optional[torch.Generator] = None,
         exploration: bool = True,
-        init_epsilon: float = .5,
+        init_epsilon: float = 1.0,
         uncertainty_map: str = None,
         reward_map: str = None
     ):
