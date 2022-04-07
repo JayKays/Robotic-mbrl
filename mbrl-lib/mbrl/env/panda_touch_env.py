@@ -10,7 +10,7 @@ from mujoco_panda.utils.viewer_utils import render_frame
 from mujoco_panda.controllers.torque_based_controllers import HuangVIC
 from mujoco_panda.controllers.torque_based_controllers import VIC
 from mujoco_panda.utils import VIC_func as func
-from mujoco_panda.controllers.torque_based_controllers.VIC_env_configs import VIC_tray_config as cfg
+from mujoco_panda.controllers.torque_based_controllers.VIC_env_configs import VIC_touch_config as cfg
 import time
 import random
 from pyquaternion import Quaternion
@@ -20,7 +20,7 @@ def goal_distance(goal_a, goal_b):
     assert goal_a.shape == goal_b.shape
     return np.linalg.norm(goal_a - goal_b, axis=-1)
 
-class PandaTrayEnv(gym.Env):
+class PandaTouchEnv(gym.Env):
 
     def __init__(self, position_as_action=False, controller="VIC", reward_type="dense", pert_type='none' \
                  , n_actions=3, log_dir=None, render=False, goal_type='random'):
@@ -28,17 +28,17 @@ class PandaTrayEnv(gym.Env):
         MODEL_PATH = os.environ['MJ_PANDA_PATH'] + '/mujoco_panda/models/'
         #self.robot = PandaArm(model_path=MODEL_PATH + 'panda_block_table.xml',
                              #render=True, compensate_gravity=False, smooth_ft_sensor=True)
-        self.robot = PandaArm(model_path=MODEL_PATH + 'panda_tray.xml',
+        self.robot = PandaArm(model_path=MODEL_PATH + 'panda_touch.xml',
                              render=False, compensate_gravity=True, \
-                              grav_comp_model_path=MODEL_PATH + 'franka_panda_with_tray.xml', smooth_ft_sensor=True)
+                              grav_comp_model_path=MODEL_PATH + 'panda_touch.xml', smooth_ft_sensor=True)
         if mujoco_py.functions.mj_isPyramidal(self.robot.model):
             print("Type of friction cone is pyramidal")
         else:
             print("Type of friction cone is eliptical")
-        self.init_jpos = np.array([-2.03e-03, -8.42e-01, 1.09e-03, -2.26e+00, 5.80e-04, 1.41e+00, 8.24e-01 - np.pi/4,])
+        self.init_jpos = np.array([-2.03e-03, -8.42e-01, 1.09e-03, -2.26e+00, 5.80e-04, 1.41e+00, 8.24e-01])
         self.robot.hard_set_joint_positions(self.init_jpos)
         self.robot.sim_step()
-        self.object_init_pose = np.concatenate((self.robot.body_pose("ball")[0],self.robot.body_pose("ball")[1] ))
+        #self.object_init_pose = np.concatenate((self.robot.body_pose("ball")[0],self.robot.body_pose("ball")[1] ))
         self.render_robot = render
         self.position_as_action  = position_as_action
         self.reward_type = reward_type
@@ -148,6 +148,8 @@ class PandaTrayEnv(gym.Env):
             # obs_dict = self.controller.state_dict.copy()
             current_pose = self.obs_dict['pose'][0:3].copy()
             self.x_d = current_pose #+ np.random.uniform(low=-.1, high=.1, size=(3,))  # np.array([0.2,0.2,0.2])#
+            self.x_d[2] = 0.5
+            #self.x_d[]
             #self.x_d = np.asarray(self.robot.ee_pose()[0])
             #self.x_d += np.array([0, 0, 0.0])
             #self.x_d_dot = np.zeros(6)
@@ -183,14 +185,6 @@ class PandaTrayEnv(gym.Env):
         pose = self.obs_dict['pose'][0:3].copy()
         x_ddot = self.robot_acceleration(x_dot)
 
-        if self.i==10:
-            ball_pose = np.concatenate((self.robot.body_pose("ball")[0], self.robot.body_pose("ball")[1]))
-            ball_pose[2] = 0.75
-            self.robot.hard_set_joint_positions(ball_pose, np.arange(7, 14))
-        if self.i==30:
-            ball_pose = np.concatenate((self.robot.body_pose("ball")[0], self.robot.body_pose("ball")[1]))
-            ball_pose[2] = 0
-            self.robot.hard_set_joint_positions(ball_pose, np.arange(7, 14))
 
         if (self.i >= self.max_num_it)  :
             done = True#(self.iteration >= self.max_num_it)
@@ -204,6 +198,7 @@ class PandaTrayEnv(gym.Env):
         #print("smoothed FT reading: ", self.obs_dict['FT'])
 
         #print(self.robot.body_pose("object1")[0])
+        print(self.robot.joint_positions())
         #print(self.robot._sim.data.qpos)
         return obs, reward, done, info
 
@@ -211,7 +206,7 @@ class PandaTrayEnv(gym.Env):
         print("resetting envs")
         self.i = 0
         self.robot.hard_set_joint_positions(self.init_jpos)
-        self.robot.hard_set_joint_positions(self.object_init_pose, np.arange(7,14))
+        #self.robot.hard_set_joint_positions(self.object_init_pose, np.arange(7,14))
         self.robot.sim_step()
         self.controller.reset()
         self.obs_dict = self.controller.state_dict.copy()
@@ -226,12 +221,12 @@ def make_panda_tray_env(env_cfg):
     controller = env_cfg.overrides.get("controller", "VIC")
     #control_rate = env_cfg.overrides.get("control_rate", cfg.PUBLISH_RATE)
     render = env_cfg.get("render", True)
-    env = PandaTrayEnv(controller=controller,  render=render)
+    env = PandaTouchEnv(controller=controller,  render=render)
     return env
 
 if __name__ == "__main__":
 
-    VIC_env = PandaTrayEnv(controller = "VIC") #
+    VIC_env = PandaTouchEnv(controller = "VIC") #
     #gym.make("gym_robotic_ultrasound:ultrasound-v0")
     curr_ee, curr_ori = VIC_env.robot.ee_pose()
     print(VIC_env.robot.ee_pose())
@@ -246,7 +241,8 @@ if __name__ == "__main__":
     VIC_env.set_render(True)
 
     for i in range(1):
-        #print(VIC_env.robot.body_pose("object1"))
+        print(VIC_env.robot.ee_pose())
+        VIC_env.robot.render()
         print(i)
     robot_pos, robot_ori = VIC_env.robot.ee_pose()
     while True:

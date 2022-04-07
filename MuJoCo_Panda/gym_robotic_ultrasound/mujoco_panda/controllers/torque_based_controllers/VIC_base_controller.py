@@ -190,7 +190,7 @@ class BaseControllerVIC():
         if self._robot._compensate_gravity:
             #print("vic_")
             total_torque = np.array([np.dot(jacobian.T, 1*b.copy())]).reshape([7, 1]) + np.array(
-                                [np.dot(jacobian.T,  1*F_ext_2D)]).reshape([7, 1])
+                                [np.dot(jacobian.T,  1*F_ext_2D)]).reshape([7, 1]) # +Fd + kf(F_ext-Fd)
         else:
             total_torque = np.array([np.dot(a, b.copy())]).reshape([7, 1]) + np.array(
                                 [np.linalg.multi_dot([jacobian.T, d, F_ext_2D])]).reshape([7, 1])
@@ -241,7 +241,8 @@ class BaseControllerVIC():
         robot_inertia = self.state_dict["M"][:7,:7]
         #self.ee_force = self.sim.data.cfrc_ext[self.probe_id][-3:] #check hand_force term
         Fz = self.state_dict["FT"][2] #self._robot.get_ft_reading()[0][2]
-        F_ext = np.array([0, 0, Fz, 0, 0, 0])
+        #F_ext = np.array([0, 0, Fz, 0, 0, 0])
+        F_ext = self.state_dict["FT"]
         F_ext_2D = F_ext.reshape([6, 1])
 
             #ee_vel, ee_omg = self._robot.ee_velocity()
