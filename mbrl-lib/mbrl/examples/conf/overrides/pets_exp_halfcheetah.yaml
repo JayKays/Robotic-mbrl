@@ -24,9 +24,9 @@ freq_train_model: 1000
 patience: 12
 num_epochs_train_model: 12
 
-planning_horizon: 30
+planning_horizon: 15
 cem_num_iters: 5
 cem_elite_ratio: 0.16
-cem_population_size: 300
+cem_population_size: 200
 cem_alpha: 0.12
 cem_clipped_normal: false
