@@ -1,6 +1,0 @@
-- experiment=pets_comparison
-- dynamics_model=gaussian_mlp_ensemble
-- algorithm=pets_exp
-- overrides=pets_exp_reacher
-- overrides.agent_type=pets
-- overrides.random_uncertainty=true

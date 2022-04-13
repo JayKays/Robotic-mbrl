@@ -1,5 +1,0 @@
-- experiment=pets_comparison
-- algorithm=pets_exp
-- overrides=pets_exp_walker
-- overrides.agent_type=pets
-- overrides.random_uncertainty=true
