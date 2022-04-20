@@ -8,8 +8,8 @@ trial_length: 1000
 
 agent_type: "Exploration"
 
-freq_model_checkpoint: 1000
-num_uncertainty_trajectories: 10
+freq_model_checkpoint: 10000
+num_uncertainty_trajectories: 3
 random_uncertainty: true
 
 num_elites: 5
@@ -25,6 +25,6 @@ num_epochs_train_model: 15
 planning_horizon: 15
 cem_num_iters: 5
 cem_elite_ratio: 0.1
-cem_population_size: 400
+cem_population_size: 250
 cem_alpha: 0.1
 cem_clipped_normal: false

@@ -26,6 +26,6 @@ num_epochs_train_model: 15
 planning_horizon: 15
 cem_num_iters: 5
 cem_elite_ratio: 0.1
-cem_population_size: 400
+cem_population_size: 250
 cem_alpha: 0.1
 cem_clipped_normal: false
