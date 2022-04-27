@@ -93,5 +93,9 @@ def create_handler_from_str(env_name: str):
         from mbrl.util.mujoco import MujocoEnvHandler
 
         return MujocoEnvHandler()
+    elif env_name == "cartpole_continuous":
+        from mbrl.util.mujoco import MujocoEnvHandler
+
+        return MujocoEnvHandler()
     else:
         raise NotImplementedError
