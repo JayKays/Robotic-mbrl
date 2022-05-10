@@ -58,7 +58,7 @@ def plot_results(
             
         x = data[key][0,:]
         plt.plot(x, mean, label=key)
-        plt.fill_between(x, lower, upper, alpha=0.4)
+        plt.fill_between(x, lower, upper, alpha=0.2)
 
         legends.append(key)
     
@@ -74,7 +74,7 @@ def run(show = True, filename = "reacher_training/data.npz"):
     plt.ylim([-300,-10])
     plt.legend(loc="lower right")
     plt.savefig(save_name, format="pdf")
-
+    plt.savefig("all_figures/" + save_name.split('/')[-1], format="pdf")
     plt.show()
 
 

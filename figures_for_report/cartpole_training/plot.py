@@ -32,10 +32,9 @@ def plot_results(
     data = np.load(filename)
     plt.figure(figsize=(8,4))
 
-
     legends = []
     for key in data.keys():
-        res = data[key][[1,3],:]
+        res = data[key][1:,:]
         if largest:
             mean = res.mean(axis=0)
             mean = largest_so_far(np.expand_dims(mean,0))[0,:]
@@ -51,17 +50,17 @@ def plot_results(
         upper = mean + std
         lower = mean - std
 
-        if smooth:
+        if smooth and sigma > 0:
             mean = gaussian_filter1d(mean, sigma=sigma)
             upper = gaussian_filter1d(upper, sigma=sigma)
             lower = gaussian_filter1d(lower, sigma=sigma)
             
         x = data[key][0,:]
         plt.plot(x, mean, label=key)
-        plt.fill_between(x, lower, upper, alpha=0.4)
+        plt.fill_between(x, lower, upper, alpha=0.2)
 
         legends.append(key)
-    
+
     plt.xlabel("Environment steps")
     plt.ylabel("Environment reward")
 
@@ -73,6 +72,7 @@ def run(show = True, filename = "cartpole_training/data.npz"):
     plt.title("Cartpole training rewards")
     plt.legend()
     plt.savefig(save_name, format="pdf")
+    plt.savefig("all_figures/" + save_name.split('/')[-1], format="pdf")
 
     plt.show()
 

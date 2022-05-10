@@ -56,7 +56,7 @@ def plot_results(
             
         x = data[key][0,:]
         plt.plot(x, mean)
-        plt.fill_between(x, lower, upper, alpha=0.4)
+        plt.fill_between(x, lower, upper, alpha=0.2)
 
         legends.append(key)
     
@@ -67,10 +67,11 @@ def plot_results(
 def run(show = True, filname = "walker_training/data.npz"):
     plot_results(sigma=100, filname=filname)
 
-    save_name = filname.split("/")[0] + "/reacher_training_rewards.pdf"
+    save_name = filname.split("/")[0] + "/walker_training_rewards.pdf"
 
     plt.title("Walker training rewards")
     plt.savefig(save_name, format="pdf")
+    plt.savefig("all_figures/" + save_name.split('/')[-1], format="pdf")
     plt.show()
 
 if __name__ == "main":

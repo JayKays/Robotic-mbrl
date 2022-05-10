@@ -89,9 +89,7 @@ if __name__ == "__main__":
     results_dir = "/home/jaykay/Robotic-mbrl/test_results/"
     save_dir = "/home/jaykay/Robotic-mbrl/figures_for_report/"
 
-    exps = ["cartpole"]#,"reacher","walker", "cheetah"]
+    exp = "cheetah"
 
-    for exp in exps:
-
-        load_save_training_rewards(results_dir + exp, save_dir + f"{exp}_training", experiments=["pets", "random", "policy"])
-        load_save_epsilon(results_dir + exp, save_dir + f"{exp}_epsilon")
+    load_save_training_rewards(results_dir + exp, save_dir + f"{exp}_training", experiments=["pets", "random", "policy"])
+    load_save_epsilon(results_dir + exp, save_dir + f"{exp}_epsilon")

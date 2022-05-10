@@ -7,9 +7,6 @@ def reward_bar_chart(filename, std_error = True):
     """
     assumes a dictonary of the form {modeltype: reward_array, ...}
     """
-
-
-
     reward_dict = np.load(filename)
     means = np.zeros(len(reward_dict))
     stds = np.zeros(len(reward_dict))
@@ -32,7 +29,6 @@ def reward_bar_chart(filename, std_error = True):
         yerr = np.vstack((mins, maxs))
         print(yerr)
     
-
     colors = {
         "pets": "tab:blue",
         "random_uncertainty": "tab:orange",
@@ -48,12 +44,12 @@ def reward_bar_chart(filename, std_error = True):
     plt.ylabel("Environment reward")
 
 
-def run(show = True, filename = "walker_bars/data.npz"):
+def run(show = True, filename = "cartpole_bars/data.npz"):
     reward_bar_chart(filename=filename)
 
-    save_name = filename.split("/")[0] + "/walker_reward_bars.pdf"
+    save_name = filename.split("/")[0] + "/cartpole_reward_bars.pdf"
 
-    plt.title("Walker rewards")
+    plt.title("Cartpole rewards")
     plt.savefig(save_name, format="pdf")
     plt.savefig("all_figures/" + save_name.split('/')[-1], format="pdf")
     if show:
