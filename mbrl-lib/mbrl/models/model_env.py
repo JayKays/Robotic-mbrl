@@ -76,6 +76,7 @@ class ModelEnv:
             (dict(str, tensor)): the model state returned by `self.dynamics_model.reset()`.
         """
         if isinstance(self.dynamics_model, mbrl.models.OneDTransitionRewardModel):
+            #print("length ", len(initial_obs_batch.shape))
             assert len(initial_obs_batch.shape) == 2  # batch, obs_dim
         with torch.no_grad():
             model_state = self.dynamics_model.reset(
@@ -88,6 +89,7 @@ class ModelEnv:
         self,
         actions: mbrl.types.TensorType,
         model_state: Dict[str, torch.Tensor],
+        prev_actions: mbrl.types.TensorType = None,
         sample: bool = False,
     ) -> Tuple[mbrl.types.TensorType, mbrl.types.TensorType, np.ndarray, Dict]:
         """Steps the model environment with the given batch of actions.
@@ -105,7 +107,9 @@ class ModelEnv:
             (tuple): contains the predicted next observation, reward, done flag and metadata.
             The done flag is computed using the termination_fn passed in the constructor.
         """
+
         assert len(actions.shape) == 2  # batch, action_dim
+        prev_obs = model_state['obs']
         with torch.no_grad():
             # if actions is tensor, code assumes it's already on self.device
             if isinstance(actions, np.ndarray):
@@ -124,9 +128,9 @@ class ModelEnv:
             rewards = (
                 pred_rewards
                 if self.reward_fn is None
-                else self.reward_fn(actions, next_observs)
+                else self.reward_fn(actions, next_observs, prev_obs, prev_actions)
             )
-            dones = self.termination_fn(actions, next_observs)
+            dones = self.termination_fn(actions, next_observs, )
 
             if pred_terminals is not None:
                 raise NotImplementedError(
@@ -145,6 +149,7 @@ class ModelEnv:
     def evaluate_action_sequences(
         self,
         action_sequences: torch.Tensor,
+        prev_action: np.ndarray,
         initial_state: np.ndarray,
         num_particles: int,
     ) -> torch.Tensor:
@@ -162,6 +167,8 @@ class ModelEnv:
             (torch.Tensor): the accumulated reward for each action sequence, averaged over its
             particles.
         """
+        #print(action_sequences)
+        #print(action_sequences.size())
         with torch.no_grad():
             assert len(action_sequences.shape) == 3
             population_size, horizon, action_dim = action_sequences.shape
@@ -171,21 +178,32 @@ class ModelEnv:
                 [1] * initial_state.ndim
             )
             initial_obs_batch = np.tile(initial_state, tiling_shape).astype(np.float32)
+            #print(action_sequences.size())
             model_state = self.reset(initial_obs_batch, return_as_np=False)
             batch_size = initial_obs_batch.shape[0]
             total_rewards = torch.zeros(batch_size, 1).to(self.device)
             terminated = torch.zeros(batch_size, 1, dtype=bool).to(self.device)
+            if prev_action is not None:
+                prev_action_seq = torch.from_numpy(prev_action).expand(action_sequences[:,0,:np.shape(prev_action)[0]].size()).to(torch.device('cuda:0'))
+                prev_action_batch =  torch.repeat_interleave(prev_action_seq, num_particles, dim=0)
+            else:
+                prev_action_batch = None
+                #print(prev_action_batch.size())
             for time_step in range(horizon):
+                #print(time_step, model_state)
                 action_for_step = action_sequences[:, time_step, :]
                 action_batch = torch.repeat_interleave(
                     action_for_step, num_particles, dim=0
                 )
+                #print(action_batch.size())
                 _, rewards, dones, model_state = self.step(
-                    action_batch, model_state, sample=True
+                    action_batch, model_state, prev_actions= prev_action_batch, sample=True
                 )
                 rewards[terminated] = 0
                 terminated |= dones
                 total_rewards += rewards
+                #if prev_action is not None:
+                prev_action_batch = action_batch # for smooth ations
 
             total_rewards = total_rewards.reshape(-1, num_particles)
             return total_rewards.mean(dim=1)

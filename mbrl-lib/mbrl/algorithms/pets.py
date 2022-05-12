@@ -30,10 +30,18 @@ def train(
     work_dir: Optional[str] = None,
 ) -> np.float32:
     # ------------------- Initialization -------------------
+    passive_actions = True
     debug_mode = cfg.get("debug_mode", False)
 
     obs_shape = env.observation_space.shape
     act_shape = env.action_space.shape
+    ext_actions = cfg.overrides.get("uncontrolled_states", False)
+    #print("ext_act: ", ext_actions)
+    if (ext_actions):
+        ext_act_shape = np.shape(env.get_external_states())[0]
+        act_shape = list(act_shape)
+        act_shape[0] += ext_act_shape
+        act_shape = tuple(act_shape)
 
     rng = np.random.default_rng(seed=cfg.seed)
     torch_generator = torch.Generator(device=cfg.device)
@@ -52,7 +60,8 @@ def train(
         )
 
     # -------- Create and populate initial env dataset --------
-    dynamics_model = mbrl.util.common.create_one_dim_tr_model(cfg, obs_shape, act_shape)
+    dynamics_model = mbrl.util.common.create_one_dim_tr_model(cfg, obs_shape, act_shape) # debugging
+    #dynamics_model = mbrl.util.common.create_one_dim_tr_model_with_passive_actions(cfg, obs_shape, act_shape, act_pass_shape)
     use_double_dtype = cfg.algorithm.get("normalize_double_precision", False)
     dtype = np.double if use_double_dtype else np.float32
     replay_buffer = mbrl.util.common.create_replay_buffer(
@@ -66,7 +75,7 @@ def train(
     )
     mbrl.util.common.rollout_agent_trajectories(
         env,
-        cfg.algorithm.initial_exploration_steps,
+        cfg,
         mbrl.planning.RandomAgent(env),
         {},
         replay_buffer=replay_buffer,
@@ -113,7 +122,7 @@ def train(
 
             # --- Doing env step using the agent and adding to model dataset ---
             next_obs, reward, done, _ = mbrl.util.common.step_env_and_add_to_buffer(
-                env, obs, agent, {}, replay_buffer
+                env, obs, ext_actions, agent, {}, replay_buffer
             )
 
             obs = next_obs

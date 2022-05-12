@@ -5,7 +5,7 @@
     <include file="panda/assets.xml"/>
     <compiler meshdir=""/>
 
-    <option cone="elliptic">
+    <option cone="elliptic" timestep="0.001" integrator="Euler" >
         <flag gravity="enable"/>
     </option>
 

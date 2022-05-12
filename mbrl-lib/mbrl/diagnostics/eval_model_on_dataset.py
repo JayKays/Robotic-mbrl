@@ -25,18 +25,26 @@ class DatasetEvaluator:
 
         self.env, term_fn, reward_fn = self.handler.make_env(self.cfg)
         self.reward_fn = reward_fn
-
+        obs_shape = self.env.observation_space.shape
+        act_shape = self.env.action_space.shape
+        ext_actions = self.cfg.overrides.get("uncontrolled_states", False)
+        # print("ext_act: ", ext_actions)
+        if (ext_actions is True):
+            ext_act_shape = np.shape(self.env.get_external_states())[0]
+            act_shape = list(act_shape)
+            act_shape[0] += ext_act_shape
+            act_shape = tuple(act_shape)
         self.dynamics_model = mbrl.util.common.create_one_dim_tr_model(
             self.cfg,
-            self.env.observation_space.shape,
-            self.env.action_space.shape,
+            obs_shape,
+            act_shape,
             model_dir=self.model_path,
         )
 
         self.replay_buffer = mbrl.util.common.create_replay_buffer(
             self.cfg,
-            self.env.observation_space.shape,
-            self.env.action_space.shape,
+            obs_shape,
+            act_shape,
             load_dir=dataset_dir,
         )
 
@@ -109,10 +117,11 @@ class DatasetEvaluator:
 
 
 if __name__ == "__main__":
+    dir = "/home/akhil/PhD/RoL/Robotic-mbrl/mbrl-lib/exp/pets/default/panda_reacher_cartesian_env/2022.04.04/171120"
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model_dir", type=str, default=None)
-    parser.add_argument("--dataset_dir", type=str, default=None)
-    parser.add_argument("--results_dir", type=str, default=None)
+    parser.add_argument("--model_dir", type=str, default=dir)
+    parser.add_argument("--dataset_dir", type=str, default=dir)
+    parser.add_argument("--results_dir", type=str, default=dir)
     args = parser.parse_args()
 
     if not args.dataset_dir:

@@ -15,18 +15,23 @@ from mujoco_panda.controllers.torque_based_controllers import VIC_config as cfg
 import time
 import random
 import quaternion
+import matplotlib
+matplotlib.use("TKAgg")
 import matplotlib.pyplot as plt
 
+def goal_distance(goal_a, goal_b):
+    assert goal_a.shape == goal_b.shape
+    return np.linalg.norm(goal_a - goal_b, axis=-1)
 
 class UltrasoundEnv(gym.Env):
-
-    def __init__(self, position_as_action = False, controller = "VIC_Huang", control_rate = None, log_dir = None, max_num_it = cfg.MAX_NUM_IT, render=True):
+    def __init__(self, position_as_action = False, controller = "VIC_Huang", control_rate = None, \
+                 log_dir = None, max_num_it = cfg.MAX_NUM_IT, render=True):
 
         MODEL_PATH = os.environ['MJ_PANDA_PATH'] + '/mujoco_panda/models/'
         #self.robot = PandaArm(model_path=MODEL_PATH + 'panda_block_table.xml',
-                             #render=True, compensate_gravity=False, smooth_ft_sensor=True)
+                             #render=True, compensate_gravity=False, smooth_ft_sensor=True
         self.robot = PandaArm(model_path=MODEL_PATH + 'panda_ultrasound.xml',
-                             render=render, compensate_gravity=False, smooth_ft_sensor=True)
+                             render=render, compensate_gravity=False, smooth_ft_sensor=False)
         if mujoco_py.functions.mj_isPyramidal(self.robot.model):
             print("Type of friction cone is pyramidal")
         else:
@@ -46,7 +51,7 @@ class UltrasoundEnv(gym.Env):
         '''
 
         if controller == "VIC_Huang":
-            self.controller = HuangVIC(self.robot, max_num_it=max_num_it, control_rate = control_rate, )
+            self.controller = HuangVIC(self.robot, )
             if position_as_action:
                 self.action_space = spaces.Box(low=np.array([cfg.GAMMA_K_LOWER, cfg.DELTA_Z_LOWER]), \
                                            high=np.array([cfg.GAMMA_K_UPPER, cfg.DELTA_Z_UPPER]))
@@ -55,20 +60,20 @@ class UltrasoundEnv(gym.Env):
                                      high=np.array([cfg.GAMMA_K_UPPER]))
         elif controller == "VIC":
             print("VIC controller")
-            self.controller = VIC(self.robot,max_num_it=max_num_it, control_rate = control_rate, )
+            self.controller = VIC(self.robot, )
             if position_as_action:
                 self.action_space = spaces.Box(low=np.array([cfg.DELTA_K_LOWER, cfg.DELTA_Z_LOWER]), \
                                            high=np.array([cfg.DELTA_K_UPPER, cfg.DELTA_Z_UPPER]))
             else:
-                self.action_space = spaces.Box(low=np.array([cfg.DELTA_K_LOWER]), \
-                                     high=np.array([cfg.DELTA_K_UPPER]))
+                self.action_space = spaces.Box(low=np.array([cfg.DELTA_K_LOWER, cfg.DELTA_K_LOWER, cfg.DELTA_K_LOWER]), \
+                                     high=np.array([cfg.DELTA_K_UPPER, cfg.DELTA_K_UPPER, cfg.DELTA_K_UPPER]))
         else:
             raise ValueError("Invalid contorller type")
-            
-        self.observation_space = spaces.Box(
-            low=np.array([cfg.LOWER_Fz, cfg.LOWER_Z_ERROR, cfg.LOWER_Kz, cfg.LOWER_Fz]), \
-            high=np.array([cfg.UPPER_Fz, cfg.UPPER_Z_ERROR, cfg.UPPER_Kz, cfg.UPPER_Fz]))
-
+        self.stiffness_adaptation   = True
+        self.controller.adaptation = self.stiffness_adaptation
+        self.fixed_traj = True
+        self.random_traj = False
+        self.timestep = cfg.T
         self.done = False
         self.max_num_it = self.controller.max_num_it
         self.F_offset = np.zeros(6)
@@ -79,24 +84,34 @@ class UltrasoundEnv(gym.Env):
         # set desired pose/force trajectory
         self.f_d = func.generate_Fd_steep(self.max_num_it, cfg.Fd, cfg.T)
         self.f_d[2, :] = cfg.Fd
+        self.f_d = np.array([0,0,200])
         self.goal_ori = np.asarray(self.robot.ee_pose()[1])
         #self.goal_ori = np.array([0, -1, -3.82e-01,  0])
-        self.x_d_ddot, self.x_d_dot, self.x_d = func.generate_desired_trajectory_tc(self.robot, self.max_num_it, cfg.T,
-                                                                                    move_in_x=True)
-        plt.plot(self.x_d[1, :])
-        plt.show()
+        if self.fixed_traj:
+            self.traj_ddot, self.traj_dot, self.traj = func.generate_desired_trajectory_tc( \
+                self.robot, self.max_num_it + 1, cfg.T, move_in_x=True)
+        #plt.plot(self.traj[0, :])
+        #plt.show()
         self.i = 0
-        self.log_dir = os.getcwd() if cfg.LOG and log_dir is None else log_dir 
-        self.log_dict = {}
-
-        self.torque_hist = np.zeros((self.max_num_it, 7))
-        self.rawF_hist = np.zeros((self.max_num_it, 6))
-        self.F_hist = np.zeros_like(self.rawF_hist)
-
-        # print("mass: ", p.mass_matrix())
-
+        self.x_d = np.zeros(3)
+        self.pose = self.x_d.copy()
+        self.x_d_dot = np.zeros(6)
+        self.x_d_ddot = np.zeros(6)
+        self.obs_dict = self.controller.state_dict.copy()
+        obs = self.get_obs()
+        low = np.full(obs.shape, -float("inf"), dtype=np.float32)
+        high = np.full(obs.shape, float("inf"), dtype=np.float32)
+        self.observation_space = spaces.Box(low, high, dtype=obs.dtype)
+        # self.observation_space = spaces.Dict(dict(
+        # observation=spaces.Box(-np.inf, np.inf, shape=obs.shape, dtype='float32'),
+        # ))
+        self.reset()
     # activate controller (simulation step and controller thread now running)
 
+    def robot_acceleration(self, prev_vel):
+        x_ddot = (self.obs_dict['vel'][0:3].copy() - prev_vel)/ self.timestep
+        self.obs_dict['acceleration'] = x_ddot
+        return x_ddot
     #design teh
     def force_mean_filter(self, filter_type="mean", window_size= 5):
         if self.i < window_size:
@@ -104,123 +119,109 @@ class UltrasoundEnv(gym.Env):
         else:
             return (np.sum(self.F_history[self.i-window_size+1:,:], axis=0)/window_size)
 
+    def set_render(self, rend):
+        self.render_robot = rend
+
+    def get_extra_obs(self):
+        return self.obs_dict.copy()
+
+    def get_ext_force(self):
+        return (self.controller.virtual_ext_force.copy()[0:3])
+
+    def get_external_states(self):
+        return (self.obs_dict['FT'][0:3].copy())
 
     def get_obs(self):
-        obs_dict = self.controller.state_dict
-        return np.array(
-            [obs_dict["FT"][2] , \
-             obs_dict["pose"][2] - self.x_d[2, self.i], \
-             obs_dict["K"][2,2], \
-             self.f_d[2, self.i]])
-
-    def get_reward(self):
-        obs_dict = self.controller.state_dict
-        force_reward = np.exp(-np.square(3*(obs_dict["FT"][2] - self.f_d[2, self.i] - self.F_offset[2])))
-        x_reward = np.exp(-np.square(300 * (obs_dict["pose"][0] - self.x_d[0, self.i])))
-        y_reward = np.exp(-np.square(300 * (obs_dict["pose"][1] - self.x_d[1, self.i])))
-        reward = 1*force_reward + 0*x_reward + 0*y_reward
+        self.obs_dict = self.controller.state_dict.copy()
+        state = np.concatenate ((np.array(self.obs_dict["FT"][0:3]),self.x_d - np.array(self.obs_dict["pose"][0:3].copy()), \
+                         np.array(self.obs_dict["vel"][0:3].copy())))
+        return state
+    def get_reward(self, pose_goal, force_goal, pose,force, input):
+        pose_cost = np.sum(np.square(100 * (pose_goal - pose)))
+        force_cost = np.sum(np.square(1 * (force_goal[2] - force[2])))
+        act_cost = 0 * 0.1 * np.sum(np.square(input))
+        reward = -(1*pose_cost + 1*force_cost + 0*act_cost)
         return reward
 
+    def change_goal(self):
+        if self.fixed_traj or self.random_traj:
+            #obs_dict = self.controller.state_dict.copy()
+            #current_pose = obs_dict['pose'][0:3]
+            #current_vel = obs_dict['vel'][0:3]
+            #self.x_d_ddot = self.traj_ddot[:, self.i+1]
+            #self.x_d_dot  = self.traj_dot[:, self.i+1]
+            self.x_d = self.traj[:, 0]#self.traj[:, self.i+1] #self.traj[:, -1]#
+
+            #self.x_d_dot[0:3] = (self.x_d - current_pose)/self.timestep
+            #self.x_d_ddot[0:3] = (self.x_d_dot[0:3] - current_vel) / self.timestep
+            #print(self.x_d_dot[0:3], self.x_d_ddot[0:3] )
+
+    def get_goal(self):
+        return self.x_d.copy(), np.diag(np.array(self.obs_dict['K']))[0:3]
 
     def step(self, action):
         #if self.position_as_action:
-        self.controller.set_goal(action, self.x_d[:, self.i], self.goal_ori, self.x_d_dot[:, self.i], \
-                                 self.x_d_ddot[:, self.i], goal_force=self.f_d[:, self.i])
-        self.controller._send_cmd()
-        self.state = self.get_obs()
-
+        if not self.stiffness_adaptation:
+            action =  1*np.square(action)
+        #action = np.array([5, 5, -0.0])
+        x_dot = self.obs_dict['vel'][0:3].copy()
+        #action = np.array([5, 5, 10])
+        for k in range(1):
+            self.controller.set_goal(action, self.x_d, self.goal_ori, 0*self.x_d_dot, \
+                                 0*self.x_d_ddot, goal_force=self.f_d)
+            self.controller._send_cmd()
+            #self.controller.get_robot_states()
+            #self.change_goal()
+        #self.controller.timestep += 1
+        last_pose_goal = self.x_d.copy()[0:2]
+        last_force_goal = self.f_d.copy()
         self.i += 1
-        # print(f"Env i: {self.i}, controller timestep: {self.controller.timestep}")
-        self.controller.get_robot_states()
-        self.state = self.get_obs()
-        if (self.i >= self.max_num_it-1)  or (np.abs(self.state[0]) > 100):
+        self.change_goal()
+        obs = self.get_obs()
+        x_ddot = self.robot_acceleration(x_dot)
+        pose = self.obs_dict['pose'][0:2].copy()
+        force = self.obs_dict['FT'][0:3].copy()
+        print(force)
+        if (self.i >= self.max_num_it-1)  or (np.max(np.abs(force)) > 500 or  (np.sum(np.abs(self.obs_dict['pose'][3:]))) > 0.1\
+                        or (np.sum(np.abs(self.obs_dict['pose'][0:3] - self.x_d))) > 0.1):
             done = True#(self.iteration >= self.max_num_it)
+            #print("done")
         else:
             done = False
-        reward = self.get_reward()
+        reward = self.get_reward(last_pose_goal, last_force_goal, pose,force, action )
         info = {}
-        # print(f"Done: {done}, i: {self.i}")
-        
-        self.torque_hist[self.i,:] = self.controller._cmd
-        self.F_hist[self.i,:] = self.controller.state_dict["FT"]
-        self.rawF_hist[self.i,:] = self.controller.state_dict["FT_raw"]
-
-        if done and cfg.LOG:
-            print("DONE, Saving state log")
-            self.update_log()
-            self.save_log()
-        
-        #print(self.robot.get_ft_reading())
-        #print("torque ", self.controller._cmd)
-        #print("pose ", self.x_d[:, self.i-1] - self.robot.ee_pose()[0])
-        #print("smoothed FT reading: ", self.robot.get_ft_reading(pr=True)[0])
-        return self.state, reward, done, info
+        self.robot.render()
+        return obs, reward, done, info
 
     def reset(self):
-        print("resetting envs")
+        #print("resetting envs")
         index = 0  # np.random.randint(0, (0.9 * self.max_num_it))
         self.i = index
         self.robot.hard_set_joint_positions(self.init_jpos)
         self.robot.sim_step()
-        #time.sleep(1)
-        #self.robot.hard_set_joint_positions(self.init_jpos)
-        #self.robot.sim_step()
-
-        #print(self.robot.ee_pose())
-        #print("resetting the controller")
         self.controller.reset()
+        self.change_goal()
         return self.get_obs()
 
     def render(self, **kwargs):
         self.robot.render()
 
-    def update_log(self):
-        if not bool(self.log_dict): #Checks if log_dict is empty
-            self.log_dict["F"] = self.F_hist
-            self.log_dict["torque"] = self.torque_hist
-            self.log_dict["F_raw"] = self.rawF_hist
-            # self.log_dict["x"] = self.controller.x_history.T
-            # self.log_dict["x_dot"] = self.controller.x_dot_history.T
-            # self.log_dict["p"] = self.controller.p_hist.T
-            # self.log_dict["Fz"] = self.controller.Fz_history
-            # self.log_dict["h_e"] = self.controller.h_e_hist.T
-            # self.log_dict["Kp"] = self.controller.Kp_pos_hist
-            # self.log_dict["Kp_z"] = self.controller.Kp_z_hist
-            # self.log_dict["Kd_z"] = self.controller.Kd_z_hist
-        else:
-            self.log_dict["F"] = np.append(self.log_dict["F"], self.F_hist[:self.i,:], axis = 0)
-            self.log_dict["F_raw"] = np.append(self.log_dict["F_raw"], self.rawF_hist[:self.i,:], axis = 0)
-            self.log_dict["torque"] = np.append(self.log_dict["torque"], self.torque_hist[:self.i,:], axis = 0)
-            # self.log_dict["x"] = np.append(self.log_dict["x"], self.controller.x_history.T[:self.controller.timestep,:], axis = 0)
-            # self.log_dict["x_dot"] = np.append(self.log_dict["x_dot"], self.controller.x_dot_history.T[:self.controller.timestep,:], axis = 0)
-            # self.log_dict["p"] = np.append(self.log_dict["p"], self.controller.p_hist.T[:self.controller.timestep,:], axis = 0)
-            # self.log_dict["Fz"] = np.append(self.log_dict["Fz"], self.controller.Fz_history[:self.controller.timestep], axis = 0)
-            # self.log_dict["h_e"] = np.append(self.log_dict["h_e"], self.controller.h_e_hist.T[:self.controller.timestep,:], axis = 0)
-            # self.log_dict["Kp"] = np.append(self.log_dict["Kp"], self.controller.Kp_pos_hist[:self.controller.timestep], axis = 0)
-            # self.log_dict["Kp_z"] = np.append(self.log_dict["Kp_z"], self.controller.Kp_z_hist[:self.controller.timestep], axis = 0)
-            # self.log_dict["Kd_z"] = np.append(self.log_dict["Kd_z"], self.controller.Kd_z_hist[:self.controller.timestep], axis = 0)
-
-    def save_log(self):
-        if self.log_dir is not None and cfg.LOG:
-            path = pathlib.Path(self.log_dir) / "controller_state_dict.npz"
-            np.savez(path, **self.log_dict)
-
 
 def make_ultrasound_env(env_cfg):
 
-    num_it = env_cfg.overrides.get("trial_length", cfg.MAX_NUM_IT)
-    controller = env_cfg.overrides.get("controller", "VIC_Huang")
-    control_rate = env_cfg.overrides.get("control_rate", cfg.PUBLISH_RATE)
+    #num_it = env_cfg.overrides.get("trial_length", cfg.MAX_NUM_IT)
+    controller = env_cfg.overrides.get("controller", "VIC")
+    #control_rate = env_cfg.overrides.get("control_rate", cfg.PUBLISH_RATE)
     
     render = env_cfg.get("render", True)
     
-    env = UltrasoundEnv(max_num_it=num_it, controller=controller, control_rate=control_rate, render = render)
+    env = UltrasoundEnv(controller=controller,  render=render)
 
     return env
 
 if __name__ == "__main__":
 
-    VIC_env = UltrasoundEnv(controller = "VIC_Huang")
+    VIC_env = UltrasoundEnv(controller = "VIC")
     #gym.make("gym_robotic_ultrasound:ultrasound-v0")
     curr_ee, curr_ori = VIC_env.robot.ee_pose()
     print(VIC_env.robot.ee_pose()[1])
@@ -241,16 +242,17 @@ if __name__ == "__main__":
         #print("helloooo",i, timestep)
         robot_pos, robot_ori = VIC_env.robot.ee_pose()
         render_frame(VIC_env.robot.viewer, robot_pos, robot_ori)
-        render_frame(VIC_env.robot.viewer, VIC_env.x_d[:, i], VIC_env.goal_ori, alpha=0.2)
-        if timestep >= i:
+        render_frame(VIC_env.robot.viewer, VIC_env.x_d, VIC_env.goal_ori, alpha=0.2)
+        if True:
             elapsed_r = time.time() - now_r
             # render controller target and current ee pose using frames
-            action = 0.00001# 10*(1-2*np.random.random())#0#.000001#np.array([0.0001, 0.00001])  # np.random.uniform(1.e-6, 0.01, 2)
+            action = np.array([0,0,-0.0])# 10*(1-2*np.random.random())#0#.000001#np.array([0.0001, 0.00001])  # np.random.uniform(1.e-6, 0.01, 2)
             s,r,_,_ = VIC_env.step(action)
-            print("reward: ", r)
+            #print("reward: ", r)
+            #print(i)
             #print(s)
             i += 1
-            if i == 4999:
+            if i == 49999:
                 break
         VIC_env.robot.render()  # render the visualisation
 

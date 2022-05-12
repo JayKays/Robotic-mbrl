@@ -82,7 +82,8 @@ class SACAgent(Agent):
     def alpha(self):
         return self.log_alpha.exp()
 
-    def act(self, obs, sample=False, batched=False):
+    def act(self, obs, act_passive, prev_act, sample=False, batched=False):
+        #print("act_range ", self.action_range)
         obs = torch.FloatTensor(obs).to(self.device)
         if not batched:
             obs = obs.unsqueeze(0)

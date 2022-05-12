@@ -2,7 +2,7 @@ from mujoco_panda.utils.tf import quatdiff_in_euler
 from .configs import BASIC_HYB_CONFIG
 #import VIC_config as cfg
 from mujoco_panda.controllers.torque_based_controllers.VIC_base_controller import BaseControllerVIC
-from mujoco_panda.controllers.torque_based_controllers import VIC_config as cfg
+from mujoco_panda.controllers.torque_based_controllers import VIC_Huang_config as cfg
 import numpy as np
 import quaternion
 import time
@@ -30,7 +30,7 @@ class HuangVIC(BaseControllerVIC):
             BASIC_HYB_CONFIG (see config for reference)
         :type config: dict, optional
         """
-        super().__init__(robot_object, control_rate=control_rate, max_num_it = kwargs.get("max_num_it"), )
+        super().__init__(robot_object)
         self.demo_data_dict = {}
         self.demo_data = []
         self.gamma = np.identity(18)
@@ -54,6 +54,7 @@ class HuangVIC(BaseControllerVIC):
         :rtype: np.ndarray (7,)
         """
         #self.gamma[8, 8] = self.action[0]  # gamma B
+        #print("helloooo")
         self.gamma[14, 14] = self.action  # gamma K
 
         x, x_dot, delta_x, jacobian, robot_inertia, F_ext_2D = \
@@ -61,9 +62,11 @@ class HuangVIC(BaseControllerVIC):
 
         xi = self.get_xi(x_dot, self.goal_vel, self.goal_acc, delta_x, \
                          self.x_dot_history, self.timestep, 1/self.control_rate)
-
+        #print(self.goal_force)
         self.lam = self.lam.reshape([18, 1]) + self.get_lambda_dot(self.gamma, xi, self.Kv, self.P, \
                     self.goal_force, F_ext_2D, self.timestep,).reshape([18, 1])
+        #self.lam[14]= np.clip(self.lam[14], -2000, 8000)
+        #print(self.lam[14])
         M_hat, B_hat, K_hat = self.update_MBK_hat(self.lam, self.M, self.B, self.K)
         #print(B_hat, K_hat)
         #print(np.shape(B_hat), np.shape(K_hat))#, B_hat[2,2],K_hat[2,2])
@@ -81,17 +84,21 @@ class HuangVIC(BaseControllerVIC):
 
     def get_lambda_dot(self, gamma, xi, K_v, P, F_d, F_ext_2D, i, ):
         T = 1/self.control_rate#float(time_per_iteration[i] - time_per_iteration[i - 1])
+        #print(F_ext_2D - F_d.reshape([6, 1]))
         return np.linalg.multi_dot \
                 ([-np.linalg.inv(gamma), xi.T, np.linalg.inv(K_v), P, F_ext_2D - F_d.reshape([6, 1])]) * T
 
     def update_MBK_hat(self, lam, M, B, K):
-        M_hat = M  # + np.diagflat(lam[0:6]) M is chosen to be constant
-        K_hat = K.copy() + np.diagflat(lam[12:18])
+        M_hat = self.M  # + np.diagflat(lam[0:6]) M is chosen to be constant
+        K_hat = self.K.copy() + np.diagflat(lam[12:18])
         K_hat = np.clip(K_hat, self.K_hat_lower, self.K_hat_upper)
         B_hat = B.copy()
-        B_hat[2,2] = np.sqrt(K_hat[2,2])
-        # ensure_limits(1,5000,M_hat)
+        #K_hat[2,2] = 100
+        B_hat[2,2] = 2*np.sqrt(K_hat[2,2])
         B_hat = np.clip(B_hat, self.B_hat_lower, self.B_hat_upper)
+        #self.K = K_hat
+        #self.B = B_hat
+        print(np.diag(K_hat)[:3])
         return M_hat, B_hat, K_hat
 
  #Not used in this impelenmnetatin , used for collecting demo data in the threading based version

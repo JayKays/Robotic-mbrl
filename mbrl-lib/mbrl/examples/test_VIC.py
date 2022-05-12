@@ -33,3 +33,5 @@ F, h_e, ori, p, x, J, v, joint_v = robot.get_HFMC_states(x_hist,iteration,time_p
 F_offset = F
 p_z_init = p[2]
 print(v, joint_v)
+
+#

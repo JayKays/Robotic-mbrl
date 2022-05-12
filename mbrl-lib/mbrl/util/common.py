@@ -5,7 +5,6 @@
 from importlib.resources import path
 import pathlib
 from typing import Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
-
 import gym.wrappers
 import hydra
 import numpy as np
@@ -87,6 +86,8 @@ def create_one_dim_tr_model(
 
     # Now instantiate the model
     model = hydra.utils.instantiate(cfg.dynamics_model)
+    print(model)
+    #s
 
     name_obs_process_fn = cfg.overrides.get("obs_process_fn", None)
     if name_obs_process_fn:
@@ -457,7 +458,7 @@ def rollout_model_env(
 
 def rollout_agent_trajectories(
     env: gym.Env,
-    steps_or_trials_to_collect: int,
+    cfg: omegaconf.DictConfig,
     agent: mbrl.planning.Agent,
     agent_kwargs: Dict,
     trial_length: Optional[int] = None,
@@ -525,6 +526,7 @@ def rollout_agent_trajectories(
                 next_obs, reward, done, info = step_env_and_add_to_buffer(
                     env,
                     obs,
+                    cfg.overrides.get("uncontrolled_states", False),
                     agent,
                     agent_kwargs,
                     replay_buffer,
@@ -544,7 +546,7 @@ def rollout_agent_trajectories(
             obs = next_obs
             total_reward += reward
             step += 1
-            if not collect_full_trajectories and step == steps_or_trials_to_collect:
+            if not collect_full_trajectories and step == cfg.algorithm.initial_exploration_steps:
                 total_rewards.append(total_reward)
                 return total_rewards
             if trial_length and step % trial_length == 0:
@@ -553,7 +555,7 @@ def rollout_agent_trajectories(
                 break
         trial += 1
         total_rewards.append(total_reward)
-        if collect_full_trajectories and trial == steps_or_trials_to_collect:
+        if collect_full_trajectories and trial == cfg.algorithm.initial_exploration_steps:
             break
     return total_rewards
 
@@ -561,6 +563,7 @@ def rollout_agent_trajectories(
 def step_env_and_add_to_buffer(
     env: gym.Env,
     obs: np.ndarray,
+    ext_actions: bool,
     agent: mbrl.planning.Agent,
     agent_kwargs: Dict,
     replay_buffer: ReplayBuffer,
@@ -599,8 +602,21 @@ def step_env_and_add_to_buffer(
         agent_obs = getattr(env, "get_last_low_dim_obs")()
     else:
         agent_obs = obs
-    action = agent.act(agent_obs, **agent_kwargs)
+
+
+    ext_act =  env.get_external_states()
+    prev_act = env.get_action()
+    #print("ext_act: ", ext_actions)
+    if ext_actions:
+        action = agent.act(agent_obs, ext_act, prev_act, **agent_kwargs)
+    else:
+        #print("hello,", ext_actions)
+        action = agent.act(agent_obs, None, prev_act, **agent_kwargs)
+
+    #print(action)
     next_obs, reward, done, info = env.step(action)
+    if ext_actions:
+        action = np.concatenate((action,ext_act))# debug
     replay_buffer.add(obs, action, next_obs, reward, done)
     if callback:
         callback((obs, action, next_obs, reward, done))

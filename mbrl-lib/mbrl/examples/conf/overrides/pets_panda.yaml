@@ -1,10 +1,11 @@
 # @package _group_
-env: "ultrasound_env"
-term_fn: "HFMC"
-reward_fn: "HFMC"
+env: "panda_env"
+term_fn: "no_termination"
+reward_fn: "panda_traj_tracking"
+uncontrolled_states: "True"
 learned_rewards: False
 trial_length: 1000
-num_steps: 2000
+num_steps: 500000
 
 #Controller spesific parameters
 controller: "VIC"
@@ -15,12 +16,12 @@ model_lr: 1e-5
 model_wd: 5e-4
 model_batch_size: 32
 validation_ratio: 0
-freq_train_model: 150
+freq_train_model: 1000
 patience: 25
 num_epochs_train_model: 25
 
-planning_horizon: 5
-cem_num_iters: 5
+planning_horizon: 10
+cem_num_iters: 10
 cem_elite_ratio: 0.1
 cem_population_size: 350
 cem_alpha: 0.1

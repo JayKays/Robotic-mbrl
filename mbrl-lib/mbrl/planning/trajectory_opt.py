@@ -161,7 +161,9 @@ class CEMOptimizer(Optimizer):
         Returns:
             (torch.Tensor): the best solution found.
         """
+        #print("bounds ",self.lower_bound, self.upper_bound)
         mu, dispersion = self._init_population_params(x0)
+        #print("init sol: ",x0)
         best_solution = torch.empty_like(mu)
         best_value = -np.inf
         population = torch.zeros((self.population_size,) + x0.shape).to(
@@ -184,7 +186,7 @@ class CEMOptimizer(Optimizer):
             if best_values[0] > best_value:
                 best_value = best_values[0]
                 best_solution = population[elite_idx[0]].clone()
-
+        #print(mu)
         return mu if self.return_mean_elites else best_solution
 
 
@@ -653,7 +655,7 @@ class TrajectoryOptimizerAgent(Agent):
         self.optimizer.reset()
 
     def act(
-        self, obs: np.ndarray, optimizer_callback: Optional[Callable] = None, **_kwargs
+        self, obs: np.ndarray, act_passive: np.ndarray, pre_act: np.ndarray, optimizer_callback: Optional[Callable] = None, **_kwargs
     ) -> np.ndarray:
         """Issues an action given an observation.
 
@@ -676,9 +678,16 @@ class TrajectoryOptimizerAgent(Agent):
             )
         plan_time = 0.0
         if not self.actions_to_use:  # re-plan is necessary
-
+            #print(act_passive)
             def trajectory_eval_fn(action_sequences):
-                return self.trajectory_eval_fn(obs, action_sequences)
+                if act_passive is not None:
+                    size = list(action_sequences[:,:, 0].size())
+                    size.append(np.shape(act_passive)[0])
+                    #print("hello",act_passive )
+                    #A = torch.from_numpy(act_passive).expand(action_sequences[:,:,0].size(), np.shape(act_passive)[0]).to(torch.device('cuda:0'))
+                    A = torch.from_numpy(act_passive).expand(size).to(torch.device('cuda:0'))
+                    action_sequences = torch.cat((action_sequences,A) , -1)
+                return self.trajectory_eval_fn(obs, action_sequences,pre_act )
 
             start_time = time.time()
             plan = self.optimizer.optimize(
@@ -739,10 +748,9 @@ def create_trajectory_optim_agent_for_model(
     """
     complete_agent_cfg(model_env, agent_cfg)
     agent = hydra.utils.instantiate(agent_cfg)
-
-    def trajectory_eval_fn(initial_state, action_sequences):
+    def trajectory_eval_fn(initial_state, action_sequences, pre_action):
         return model_env.evaluate_action_sequences(
-            action_sequences, initial_state=initial_state, num_particles=num_particles
+            action_sequences, pre_action, initial_state=initial_state, num_particles=num_particles
         )
 
     agent.set_trajectory_eval_fn(trajectory_eval_fn)

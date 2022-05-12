@@ -46,8 +46,12 @@
                                     <joint name="panda_joint7" range="-2.8973 2.8973" frictionloss="0.5"/>
                                     <geom class="visual" mesh="link7_visual"/>
                                     <geom class="collision" mesh="link7_collision"/>
+                                    <!-- pseudo body added to caliberate the force sensor -->
+                                    <body name="force_sensor" pos="0.0 0 0.107" euler='0 0 0.'>
+                                        <geom pos="0 0 0" size="0.02 .0001" mass="0.0001" type="cylinder" group="0" />
 
-                                    <site name='ee_site' pos='0 0 0.107' size="0.005, 0.005, 0.005" euler='0 0 -1.57'/>
+                                        <site name='ee_site' pos='0 0 0' size="0.005, 0.005, 0.005" euler='0 0 -1.57' />
+                                    </body>
                                 </body>
                             </body>
                         </body>

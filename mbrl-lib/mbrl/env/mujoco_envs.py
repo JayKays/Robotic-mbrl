@@ -10,3 +10,7 @@ from .pets_halfcheetah import HalfCheetahEnv
 from .pets_pusher import PusherEnv
 from .pets_reacher import Reacher3DEnv
 from .ultrasound_env import UltrasoundEnv, make_ultrasound_env
+from .panda_env import PandaTrajTrack, make_panda_env
+from .panda_reacher_cartesian import PandaReacherCartesian, make_panda_reacher_cartesian_env
+from .panda_tray_env import PandaTrayEnv, make_panda_tray_env
+from .panda_push_env import PandaPushEnv, make_panda_push_env

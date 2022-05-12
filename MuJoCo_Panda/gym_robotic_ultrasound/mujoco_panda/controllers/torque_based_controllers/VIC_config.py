@@ -10,10 +10,10 @@ from gym import spaces
 SIM_STATUS = True
 ADD_NOISE = True
 NOISE_FRACTION = 0.015 #standard deviation of the noise is now 1.5 % of the force-value
-LOG = True
 
 Fd = 10
-PUBLISH_RATE = 1000
+ROBOT_CONTROL_RATE = 10
+PUBLISH_RATE = 10
 duration = 5
 z_max = 0.584#5.91776e-01
 z_min = 0.582
@@ -43,26 +43,26 @@ GAMMA_K_INIT = 0.0005/10#10**(-2) #never applied
 
 
 # parameters of stiffness and damping matrices
-Kp =  2500#10000#1250
-Kpz = 1000#300#20#35#50 #initial value (adaptive)
-Ko = 1000#25000#5000#1500#900
+Kp =  2000#10000#1250
+#Kpz = 1000#300#20#35#50 #initial value (adaptive)
+Ko = 0#10000#25000#5000#1500#900
 
-Bp = np.sqrt(Kp)#700/4
-Bpz = np.sqrt(Kpz)#10 # #initial value (adaptive)
-Bo = np.sqrt(Ko)#10#0# 3750 #10#100#10
+Bp = 2*np.sqrt(Kp)#700/4
+#Bpz = np.sqrt(Kpz)#10 # #initial value (adaptive)
+Bo = 2*np.sqrt(Ko)#10#0# 3750 #10#100#10
 
 # MASS, DAMPING AND STIFFNESS MATRICES (ONLY M IS COMPLETELY CONSTANT)
-M = np.identity(6)*10
+M = np.identity(6)*1
 
 B = np.array([[Bp, 0, 0, 0, 0, 0],
                 [0, Bp, 0, 0, 0, 0],
-                [0, 0, Bpz, 0, 0, 0],
+                [0, 0, Bp, 0, 0, 0],
                 [0, 0, 0, Bo, 0, 0],
                 [0, 0, 0, 0, Bo, 0],
                 [0, 0, 0, 0, 0, Bo]])
 K = np.array([[Kp, 0, 0, 0, 0, 0],
                 [0, Kp, 0, 0, 0, 0],
-                [0, 0, Kpz, 0, 0, 0],
+                [0, 0, Kp, 0, 0, 0],
                 [0, 0, 0, Ko, 0, 0],
                 [0, 0, 0, 0, Ko, 0],
                 [0, 0, 0, 0, 0, Ko]])
@@ -85,11 +85,11 @@ K_v = np.identity(6)
 P = np.identity(6)
 
 B_hat_lower = 0
-B_hat_upper = 300#300
+B_hat_upper = 30000#300
 B_hat_limits = [B_hat_lower,B_hat_upper]
 
 K_hat_lower = 0#10
-K_hat_upper = 25000#1000
+K_hat_upper = 2500000#1000
 K_hat_limits = [K_hat_lower,K_hat_upper]
 
 #list_of_limits = [GAMMA_B_LOWER, GAMMA_B_UPPER, GAMMA_K_LOWER,GAMMA_K_UPPER, KP_POS_LOWER, KP_POS_UPPER,B_hat_lower,B_hat_upper,K_hat_lower,K_hat_upper ]

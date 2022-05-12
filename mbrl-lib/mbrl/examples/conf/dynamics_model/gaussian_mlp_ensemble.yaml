@@ -1,11 +1,11 @@
 # @package _group_
 _target_: mbrl.models.GaussianMLP
 device: ${device}
-num_layers: 4
+num_layers: ${overrides.num_layers}
 in_size: ???
 out_size: ???
 ensemble_size: 5
-hid_size: 200
+hid_size: ${overrides.hidden_layer_size}
 deterministic: false
 propagation_method: random_model
 learn_logvar_bounds: false  # so far this works better

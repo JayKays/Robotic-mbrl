@@ -81,8 +81,8 @@ class MujocoRobot(object):
         else:
             self._ft_site_name = False
 
-        self._mutex = Lock()
-        self._asynch_thread_active = False
+        #self._mutex = Lock()
+        #self._asynch_thread_active = False
 
 
         self._forwarded = False
@@ -188,6 +188,7 @@ class MujocoRobot(object):
             if not self._forwarded:
                 self.forward_sim()
             sensordata = -self._sim.data.sensordata.copy() # change sign to make force relative to parent body
+            #print(sensordata)
             if in_global_frame:
                 if self._ft_site_name:
                     new_sensordata = np.zeros(6)
@@ -494,7 +495,10 @@ class MujocoRobot(object):
 
         assert cmd.shape[0] == actuator_ids.shape[0]
         #print("setting torqueee", actuator_ids)
+        #print(cmd)
         self._sim.data.ctrl[actuator_ids] = cmd
+
+        #time.sleep(0.5)
 
     def hard_set_joint_positions(self, values, indices=None):
         """
@@ -517,7 +521,7 @@ class MujocoRobot(object):
             self._asynch_thread_active = False
             self._asynch_sim_thread.join()
 
-    def sim_step(self, render=True):
+    def sim_step(self, render=False):
         """
         The actual step function to forward the simulation. Not required or recommended if 
         using asynchronous run.
@@ -525,11 +529,12 @@ class MujocoRobot(object):
         :param render: flag to forward the renderer as well, defaults to True
         :type render: bool, optional
         """
-
+        #b= self._sim.data.ctrl.copy()
         for f_id in self._pre_step_callables:
             self._pre_step_callables[f_id][0](
                 *self._pre_step_callables[f_id][1])
         self._sim.step()
+        #print(b - self._sim.data.ctrl)
         #print("step execuyted")
         # if self._first_step_not_done:
         #     self._first_step_not_done = False
@@ -543,6 +548,7 @@ class MujocoRobot(object):
 
         if render:
             self.render()
+        #print(self._sim.data.ctrl)
 
     def forward_sim(self):
         """
@@ -560,6 +566,10 @@ class MujocoRobot(object):
         """
         if self._viewer is not None:
             self._viewer.render()
+        else:
+            self._viewer = mjp.MjViewer(self._sim)
+            self._viewer.render()
+
 
     def mass_matrix(self):
         mass_matrix = np.ndarray(shape=(len(self.sim.data.qvel) ** 2,), dtype=np.float64, order='C')
