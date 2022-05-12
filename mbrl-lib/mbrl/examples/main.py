@@ -29,7 +29,7 @@ def run(cfg: omegaconf.DictConfig):
         return planet.train(env, cfg)
     if cfg.algorithm.name == "bets":
         return bets.train(env, term_fn, reward_fn, cfg)
-    if cfg.algorithm.name == "EE":
+    if cfg.algorithm.name == "pets_exp":
         return EE.train(env, term_fn, reward_fn, cfg)
 
 

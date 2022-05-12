@@ -1,5 +1,5 @@
 # @package _group_
-name: "EE"
+name: "pets_exp"
 
 agent:
   _target_: mbrl.planning.TrajectoryOptimizerAgent
