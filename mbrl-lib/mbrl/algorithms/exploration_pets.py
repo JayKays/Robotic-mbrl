@@ -98,7 +98,7 @@ def train(
     uncertainty_record = {"full": np.array([]), "trial": np.array([]), "ext": np.array([])}
     env_copy = copy.deepcopy(env)
     
-    uncertainty_datasample_freq = cfg.overrides.trial_length
+    uncertainty_datasample_freq = cfg.overrides.get("uncertainty_sample_freq", cfg.overrides.trial_length)
     steps_since_data_update = 0
 
     # -------- Create and populate initial env dataset --------
@@ -188,13 +188,14 @@ def train(
                     
                     steps_since_data_update = 0
 
-                    uncertainty_datasample_freq = int(min(
-                        max(
-                            cfg.overrides.trial_length/model_env.epsilon, 
-                            cfg.overrides.trial_length
-                        ),
-                        cfg.overrides.num_steps/10
-                    ))
+                    if cfg.overrides.get("adaptive_uncertainty_freq", True):
+                        uncertainty_datasample_freq = int(min(
+                            max(
+                                cfg.overrides.trial_length/model_env.epsilon, 
+                                cfg.overrides.trial_length
+                            ),
+                            cfg.overrides.num_steps/10
+                        ))
 
                     print(f"New uncertainty sample frequency: {uncertainty_datasample_freq}")
                     print("Uncertainty data updated\n", "-"*30)
