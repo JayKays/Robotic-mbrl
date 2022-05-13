@@ -47,7 +47,7 @@ def pusher(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
 
     return -(obs_cost + act_cost).view(-1, 1)
 
-<<<<<<< HEAD
+
 def reacher(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
     assert len(next_obs.shape) == len(act.shape) == 2
 
@@ -78,10 +78,11 @@ def walker2d(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
     return reward.view(-1,1)
 
 
-def HFMC(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
-=======
+#def HFMC(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
+ #   retrun ()
+
 def ultrasound(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
->>>>>>> 11e9bcb5c5a8a90bcda059f2837a8e6e04537c4b
+
     #for 5 states
     #assert len(next_obs.shape) == len(act.shape) == 2
     #reward_ctrl = -0.1 * act.square().sum(dim=1)
