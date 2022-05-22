@@ -65,6 +65,9 @@ def plot_results(
     plt.xlabel("Training steps")
     plt.ylabel("Environment reward")
 
+    plt.rc('axes', axisbelow=True)
+    plt.grid(True, axis='y', zorder=-1)
+
 def run(show = True, filename = "reacher_training/data.npz"):
     plot_results(sigma=3, filename=filename)
 
@@ -72,10 +75,12 @@ def run(show = True, filename = "reacher_training/data.npz"):
 
     plt.title("Reacher training rewards")
     plt.ylim([-300,-10])
+    plt.xlim([0,15000])
     plt.legend(loc="lower right")
     plt.savefig(save_name, format="pdf")
     plt.savefig("all_figures/" + save_name.split('/')[-1], format="pdf")
-    plt.show()
+    if show:
+        plt.show()
 
 
 

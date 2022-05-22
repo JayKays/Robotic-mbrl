@@ -67,16 +67,20 @@ def plot_results(
     plt.xlabel("Training steps")
     plt.ylabel("Environent reward")
 
-def run(filename = "cheetah_training/data.npz"):
-    plot_results(sigma=10, filename=filename)
+    plt.rc('axes', axisbelow=True)
+    plt.grid(True, axis='y', zorder=-1)
+
+def run(show = True,filename = "cheetah_training/data.npz"):
+    plot_results(sigma=3, filename=filename)
 
     save_name = filename.split("/")[0] + "/cheetah_training_rewards.pdf"
 
     plt.title("Cheetah training rewards")
+    plt.xlim([0,200000])
     plt.savefig(save_name, format = "pdf")
     plt.savefig("all_figures/" + save_name.split('/')[-1], format="pdf")
-    plt.show()
-
+    if show:
+        plt.show()
 
 
 if __name__ == "main":

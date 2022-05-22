@@ -16,7 +16,7 @@ def plot_epsilon(filename):
     plt.plot(data["random"], label="random", color='tab:orange')
     plt.plot(data["policy"], label= "policy", color='tab:green')
 
-    plt.legend()
+    plt.legend(loc="upper right")
 
     plt.xlabel("Number of model updates")
     plt.ylabel("Epsilon value")
@@ -27,7 +27,8 @@ def run(show = True, filename = "walker_epsilon/data.npz"):
 
     save_name = filename.split("/")[0] + "/walker_epsilon.pdf"
 
-    plt.title("Epsilon value through trainng")
+    plt.title("Walker exploration weighting")
     plt.savefig(save_name, format="pdf")
     plt.savefig("all_figures/" + save_name.split('/')[-1], format="pdf")
-    plt.show()
+    if show:
+        plt.show()

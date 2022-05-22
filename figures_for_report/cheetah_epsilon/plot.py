@@ -5,20 +5,28 @@
 from matplotlib import pyplot as plt
 import numpy as np
 
+def plot_epsilon(filename):
 
-
-def plot_epsilon(data):
+    data = np.load(filename)
 
     plt.figure(figsize=(8,4))
 
-    for key in data.keys():
-        plt.plot(data[key], label=key)
+    plt.plot(data["random"], label="random", color='tab:orange')
+    plt.plot(data["policy"], label= "policy", color='tab:green')
 
-    plt.legend()
-    plt.show()
+    plt.legend(loc="upper right")
 
-def run():
+    plt.xlabel("Number of model updates")
+    plt.ylabel("Epsilon value")
 
-    data = np.load("cheetah_epsilon/data.npz")
 
-    plot_epsilon(data)
+def run(show = True, filename = "cheetah_epsilon/data.npz"):
+    plot_epsilon(filename)
+
+    save_name = filename.split("/")[0] + "/cheetah_epsilon.pdf"
+
+    plt.title("Halfcheetah exploration weighting")
+    plt.savefig(save_name, format="pdf")
+    plt.savefig("all_figures/" + save_name.split('/')[-1], format="pdf")
+    if show:
+        plt.show()

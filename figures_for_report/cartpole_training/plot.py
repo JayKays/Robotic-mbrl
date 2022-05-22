@@ -64,17 +64,22 @@ def plot_results(
     plt.xlabel("Environment steps")
     plt.ylabel("Environment reward")
 
+    plt.rc('axes', axisbelow=True)
+    plt.grid(True, axis='y', zorder=-1)
+
 def run(show = True, filename = "cartpole_training/data.npz"):
-    plot_results(sigma=2, filename=filename)
+    plot_results(sigma=3, filename=filename)
 
     save_name = filename.split("/")[0] + "/cartpole_training_rewards.pdf"
 
     plt.title("Cartpole training rewards")
     plt.legend()
+    plt.xlim([0,3000])
     plt.savefig(save_name, format="pdf")
     plt.savefig("all_figures/" + save_name.split('/')[-1], format="pdf")
 
-    plt.show()
+    if show:
+        plt.show()
 
 
 

@@ -4,10 +4,15 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 
-# from figures_for_report.plot_utils import largest_so_far
+
+#These are all helper functions used to load results data to a plotable format
+
 
 def largest_so_far(array: np.ndarray):
-
+    """
+    Returns an array with increasing values according the maximum value so far in the input array.
+    ie. [1,3,2,5] --> [1,3,3,5]
+    """
     largest = np.min(array, axis=1, keepdims=True)
     # output = np.ones_like(array) * largest
     output = np.repeat(largest, array.shape[1], axis=1)
@@ -21,6 +26,9 @@ def largest_so_far(array: np.ndarray):
     return output
 
 def load_save_training_rewards(load_dir, save_dir, num_seeds=3, experiments = None):
+    """
+    Loads training reward data from results dir, and saves it to an npz file for plotting.
+    """
 
     dirs = {
     "pets" : load_dir + "/pets",
@@ -58,6 +66,10 @@ def load_save_training_rewards(load_dir, save_dir, num_seeds=3, experiments = No
     np.savez(save_dir + "/data.npz", **rewards)
 
 def load_save_epsilon(load_dir, save_dir, num_seeds=3):
+    """
+    Loads training results and saves epsilon values to npz file for plotting
+    """
+
     dirs = {
     # "pets" : load_dir + "/pets",
     "random" : load_dir + "/random_uncertainty",
@@ -83,13 +95,3 @@ def load_save_epsilon(load_dir, save_dir, num_seeds=3):
         epsilons[key] = eps/num_seeds
 
     np.savez(save_dir + "/data.npz", **epsilons)
-
-if __name__ == "__main__":
-    
-    results_dir = "/home/jaykay/Robotic-mbrl/test_results/"
-    save_dir = "/home/jaykay/Robotic-mbrl/figures_for_report/"
-
-    exp = "cheetah"
-
-    load_save_training_rewards(results_dir + exp, save_dir + f"{exp}_training", experiments=["pets", "random", "policy"])
-    load_save_epsilon(results_dir + exp, save_dir + f"{exp}_epsilon")

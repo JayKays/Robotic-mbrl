@@ -41,7 +41,7 @@ def reward_bar_chart(filename, std_error = True):
     plt.bar(x, means, 0.4, yerr=yerr, capsize=10, color = [colors[tags[i]] for i in x])
     plt.grid(True, axis='y', zorder=-1)
     plt.xticks(x, tags)
-    plt.ylabel("Environment reward")
+    plt.ylabel("Final cartpole performance")
 
 
 def run(show = True, filename = "cartpole_bars/data.npz"):

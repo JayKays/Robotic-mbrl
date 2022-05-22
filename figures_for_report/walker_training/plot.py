@@ -63,6 +63,10 @@ def plot_results(
     plt.legend(legends)
     plt.xlabel("Training steps")
     plt.ylabel("Environment reward")
+    
+    plt.rc('axes', axisbelow=True)
+    plt.grid(True, axis='y', zorder=-1)
+
 
 def run(show = True, filname = "walker_training/data.npz"):
     plot_results(sigma=100, filname=filname)
@@ -70,9 +74,11 @@ def run(show = True, filname = "walker_training/data.npz"):
     save_name = filname.split("/")[0] + "/walker_training_rewards.pdf"
 
     plt.title("Walker training rewards")
+    plt.xlim([0,200000])
     plt.savefig(save_name, format="pdf")
     plt.savefig("all_figures/" + save_name.split('/')[-1], format="pdf")
-    plt.show()
+    if show:
+        plt.show()
 
 if __name__ == "main":
     run(filname="data.npz")
