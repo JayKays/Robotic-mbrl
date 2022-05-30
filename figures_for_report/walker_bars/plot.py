@@ -34,9 +34,9 @@ def reward_bar_chart(filename, std_error = True):
     
 
     colors = {
-        "pets": "tab:blue",
-        "random_uncertainty": "tab:orange",
-        "policy_uncertainty": "tab:green"
+        "pets": "C0",
+        "random": "C1",
+        "policy": "C2"
     }
 
     x = np.arange(len(tags))
@@ -62,9 +62,9 @@ def checkpoint_bars(filename, plot_max = False, plot_mean = True, plot_std = Fal
     }
 
     colors = {
-        "pets": "tab:blue",
-        "random_uncertainty": "tab:orange",
-        "policy_uncertainty": "tab:green"
+        "pets": "C0",
+        "random_uncertainty": "C1",
+        "policy_uncertainty": "C2"
     }
 
     labels = {

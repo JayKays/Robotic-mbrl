@@ -12,8 +12,8 @@ def plot_epsilon(filename):
 
     plt.figure(figsize=(8,4))
 
-    plt.plot(data["random"], label="random", color='tab:orange')
-    plt.plot(data["policy"], label= "policy", color='tab:green')
+    plt.plot(data["random"], label="exp_random", color='C1')
+    plt.plot(data["policy"], label= "exp_policy", color='C2')
 
     plt.legend(loc="upper right")
 

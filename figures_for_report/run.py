@@ -5,6 +5,8 @@ import argparse
 import importlib
 from matplotlib import pyplot as plt
 import matplotlib.pylab as pylab
+import matplotlib as mlp
+from cycler import cycler
 import glob
 
 #Default figure parameters
@@ -12,7 +14,8 @@ params = {'legend.fontsize': 'large',
           'figure.figsize': (8, 4),
          'axes.labelsize': 'large',
          'axes.titlesize':'x-large',
-         'legend.loc': 'lower right'}
+         'legend.loc': 'lower right',
+         'axes.prop_cycle': mlp.cycler(color=['#0000a7', '#c1272d', '#028A0F'])}
 
 pylab.rcParams.update(params)
 

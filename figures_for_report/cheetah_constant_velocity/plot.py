@@ -43,7 +43,7 @@ def reward_bar_chart(filename, std_error = True):
     plt.xticks(x, tags)
     plt.ylabel("Environment reward")
 
-def checkpoint_bars(filename, plot_max = False, plot_mean = True, plot_std = False, discard_outliers=False):
+def result_bars(filename, plot_max = False, plot_mean = True, plot_std = False, discard_outliers=False):
 
     data_dict = np.load(filename, allow_pickle=True)
     plt.figure()
@@ -52,8 +52,8 @@ def checkpoint_bars(filename, plot_max = False, plot_mean = True, plot_std = Fal
     plt.grid(True, axis='y', zorder=-1)
 
     pos = {
-        "pets": -0.22,
-        "random_uncertainty": 0,
+        "pets": -0.11,
+        "random_uncertainty": 0.11,
         "policy_uncertainty": 0.22
     }
 
@@ -62,7 +62,7 @@ def checkpoint_bars(filename, plot_max = False, plot_mean = True, plot_std = Fal
         "random_uncertainty": "C1",
         "policy_uncertainty": "C2"
     }
-    
+
     labels = {
         "pets": "pets",
         "random_uncertainty": "exp_random",
@@ -72,11 +72,13 @@ def checkpoint_bars(filename, plot_max = False, plot_mean = True, plot_std = Fal
     
 
     for exp in data_dict.keys():
+        if exp == "policy_uncertainty": continue
+
         result_dict = data_dict[exp].item()
 
         sorted_keys = [int(key) for key in list(result_dict.keys()) if key != "final"]
         sorted_keys.sort()
-        checkpoints= [str(key) for key in sorted_keys] + ["final"]
+        checkpoints= [str(key) for key in sorted_keys]
 
         
         x = np.arange(len(checkpoints))
@@ -101,23 +103,26 @@ def checkpoint_bars(filename, plot_max = False, plot_mean = True, plot_std = Fal
         else:
             plt.bar(x + pos[exp], values, width=0.2, color=colors[exp], label=labels[exp])
     
-    plt.xlabel("Number of training steps")
-    plt.ylabel("Environment rewards")
+    plt.ylabel("Recieved reward")
+    plt.xlabel("Desired velocity (m/s)")
     plt.xticks(np.arange(len(checkpoints)),[str(cp) for cp in checkpoints ])
-    plt.legend(loc = "lower right")
+    plt.legend(loc = "upper right")
     # plt.show()
 
-def run(show = True, filename = "reacher_bars/checkpoints_reacher.npz"):
-    # reward_bar_chart(filename=filename)
-    checkpoint_bars(filename=filename)
 
-    save_name = filename.split("/")[0] + "/reacher_reward_bars.pdf"
+def run(show = True, filename = "cheetah_constant_velocity/fixed_data.npz"):
+    result_bars(filename=filename)
 
-    plt.title("Reacher agent performance")
+    save_name = filename.split("/")[0] + "/cheetah_desired_vel.pdf"
+
+    plt.title("Performance tracking a desired velocity in halfcheetah")
     plt.savefig(save_name, format="pdf")
     plt.savefig("all_figures/" + save_name.split('/')[-1], format="pdf")
     if show:
         plt.show()
 
-if __name__ == "main":
-    run(filname="checkpoints_reacher.npz")
+
+if __name__ == "__main__":
+    # run(filname="data.npz")
+
+    result_bars("checkpoints_cheetah.npz")

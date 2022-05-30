@@ -33,6 +33,16 @@ def plot_results(
     data = np.load(filename)
     plt.figure(figsize=(8,4))
 
+    colors = {
+        "pets": "C0",
+        "random": "C1",
+        "policy": "C2"
+    }
+    labels = {
+        "pets": "pets",
+        "random": "exp_random",
+        "policy": "exp_policy"
+    }
 
     legends = []
     for key in data.keys():
@@ -58,10 +68,10 @@ def plot_results(
             lower = gaussian_filter1d(lower, sigma=sigma)
             
         x = data[key][0,:]
-        plt.plot(x, mean)
-        plt.fill_between(x, lower, upper, alpha=0.2)
+        plt.plot(x, mean, label=labels[key], color=colors[key])
+        plt.fill_between(x, lower, upper, alpha=0.2, color=colors[key])
 
-        legends.append(key)
+        legends.append(labels[key])
     
     plt.legend(legends)
     plt.xlabel("Training steps")
