@@ -32,6 +32,7 @@ def train(
     silent: bool = False,
     work_dir: Optional[str] = None,
 ) -> np.float32:
+
     # ------------------- Initialization -------------------
     debug_mode = cfg.get("debug_mode", False)
 
@@ -57,33 +58,6 @@ def train(
 
     use_double_dtype = cfg.algorithm.get("normalize_double_precision", False)
     dtype = np.double if use_double_dtype else np.float32
-
-    if not os.path.isfile(ext_data_dir + "/replay_buffer.npz"):
-        os.makedirs(ext_data_dir, exist_ok=True)
-
-        data_buffer = mbrl.util.common.create_replay_buffer(
-        cfg,
-        obs_shape,
-        act_shape,
-        rng=rng,
-        obs_type=dtype,
-        action_type=dtype,
-        reward_type=dtype,
-        )
-        num_trajectories = cfg.overrides.get("num_ext_trajectories", 20)
-        for _ in range(num_trajectories):
-            mbrl.util.common.rollout_agent_trajectories(
-                env,
-                cfg.algorithm.initial_exploration_steps,
-                mbrl.planning.RandomAgent(env),
-                {},
-                replay_buffer=data_buffer,
-            )
-            data_buffer.save(ext_data_dir)
-
-        print(f"Saved {num_trajectories} random trajectories to {os.path.abspath(ext_data_dir)}")
-
-    ext_data = np.load(ext_data_dir + "/replay_buffer.npz")
     
     # -------- Create dataset for uncertainty measurments--------
     uncertainty_buffer = mbrl.util.ReplayBuffer(
@@ -144,8 +118,6 @@ def train(
         model_env, cfg.algorithm.agent, num_particles=cfg.algorithm.num_particles
     )
 
-    # times = np.empty((cfg.overrides.num_steps,))
-
     # ---------------------------------------------------------
     # --------------------- Training Loop ---------------------
     env_steps = 0
@@ -171,7 +143,7 @@ def train(
                 full_uncertainty = mbrl.models.util.estimate_uncertainty(model_env.dynamics_model, work_dir)
                 trial_uncertainty = mbrl.models.util.estimate_uncertainty(model_env.dynamics_model, work_dir, idx=-cfg.overrides.trial_length)
                 
-                #Update dataset for uncertainty estimate
+                #------- Update dataset for uncertainty estimate --------
                 if steps_since_data_update >= uncertainty_datasample_freq or env_steps == 0:
                     print("-"*30,"\nUpdating uncertainty data")
 
@@ -210,7 +182,7 @@ def train(
                     trial= trial_uncertainty.cpu(), 
                     ext=ext_uncertainty.cpu()
                 )
-            
+
             if env_steps % cfg.overrides.freq_model_checkpoint == 0:
                 
                 cp_dir = work_dir + f"/check_points/{env_steps}"
@@ -238,8 +210,6 @@ def train(
             if cfg.render and hasattr(env, "render"):
                 env.render()
 
-            # times[(env_steps-1)%times.shape[0]] = time.time() - start
-
         if logger is not None:
             logger.log_data(
                 mbrl.constants.RESULTS_LOG_NAME,
@@ -251,5 +221,4 @@ def train(
 
         max_total_reward = max(max_total_reward, total_reward)
 
-    # print(f"Average step time: {times.mean()}")
     return np.float32(max_total_reward)

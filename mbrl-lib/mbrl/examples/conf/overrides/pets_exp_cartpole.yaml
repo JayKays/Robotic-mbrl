@@ -2,12 +2,12 @@
 env: "cartpole_continuous"
 learned_rewards: false
 trial_length: 200
-num_steps: 5000
+num_steps: 3000
 
 agent_type: "Exploration"
 
-freq_model_checkpoint: 500
-num_uncertainty_trajectories: 10
+freq_model_checkpoint: 200
+num_uncertainty_trajectories: 3
 random_uncertainty: true
 
 num_elites: 5

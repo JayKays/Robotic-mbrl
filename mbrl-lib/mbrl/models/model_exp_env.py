@@ -14,14 +14,13 @@ from . import Model, ModelEnv
 
 class ModelExpEnv(ModelEnv):
     """
-    Extends the ModelEnv class to allow for epxloration via disagreement,
+    Extends the ModelEnv class to allow for targeted epxloration via model disagreement,
     where the rewards are based on the disagreement between each ensemble model
     to encourage exploration of the state action space were the dynamics model
     is uncertain.
 
-    Functionality is equivalent to the parent class ModelEnv when exploration = False
+    Functionality is equivalent to the parent class ModelEnv when exploration is set to False
 
-    espilon: weighting parameter between exploration and exploitation rewards
     """
 
     def __init__(
@@ -43,7 +42,6 @@ class ModelExpEnv(ModelEnv):
         self.max_uncertainty = -1
 
         if reward_map is not None:
-            print(reward_map)
             self._reward_map = getattr(mbrl.util.math, reward_map, self._reward_map)
         
         if uncertainty_map is not None:
@@ -81,7 +79,6 @@ class ModelExpEnv(ModelEnv):
         self.exploration = not self.exploration
     
     def _uncertainty_map(self, value):
-        # return torch.tanh(1e-3*value)
         return torch.log1p(value)
     
     def _reward_map(self, value):
