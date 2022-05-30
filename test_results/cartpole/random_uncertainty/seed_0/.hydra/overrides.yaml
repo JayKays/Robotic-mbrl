@@ -1,0 +1,3 @@
+- experiment=final_tests
+- algorithm=pets_exp
+- overrides=pets_exp_cartpole

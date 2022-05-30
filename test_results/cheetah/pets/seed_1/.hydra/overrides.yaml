@@ -1,0 +1,4 @@
+- experiment=pets_sanity_check
+- algorithm=pets
+- overrides=pets_exp_halfcheetah
+- seed=1

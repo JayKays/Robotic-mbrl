@@ -1,0 +1,4 @@
+- experiment=pets_final_tests
+- algorithm=pets
+- overrides=pets_exp_walker
+- seed=2

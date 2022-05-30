@@ -1,0 +1,5 @@
+- experiment=policy_final_tests
+- algorithm=pets_exp
+- overrides=pets_exp_cartpole
+- overrides.random_uncertainty=false
+- seed=1

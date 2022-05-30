@@ -1,0 +1,4 @@
+- experiment=policy_final_tests
+- algorithm=pets_exp
+- overrides=pets_exp_walker
+- overrides.random_uncertainty=false
