@@ -1,6 +1,6 @@
 
+
 import pathlib
-from black import out
 
 import numpy as np
 import torch
@@ -8,18 +8,22 @@ import torch
 import mbrl.util
 import mbrl.util.common
 import mbrl.planning
+from gym import wrappers
 
 
-
-def test_model(model_dir, num_trials=1, output_dir=None, reward_fn_ext=None, term_fn_ext=None):
+def test_model(model_dir, num_trials=1, reward_fn_ext=None, term_fn_ext=None, using_checkpoint = False ,render = False):
     """
-    Run a set number of trials with a trained model
+    Runs a given number of trials with a trained agent loaded from model_dir.
+    
+    Includes the option to use external reward and termination functions other than the
+    ones from the environment in order to test an agents performance on a different task
+    with the same dynamics.
     """
-
-    model_path = pathlib.Path(model_dir)
-    if output_dir is not None:
-        output_path = pathlib.Path(output_dir)
-        pathlib.Path.mkdir(output_path, parents=True, exist_ok=True)
+    
+    if using_checkpoint:
+        model_path = pathlib.Path("/".join(model_dir.split("/")[:-2]))
+    else:
+        model_path = pathlib.Path(model_dir)
 
     cfg = mbrl.util.common.load_hydra_cfg(model_path)
     handler = mbrl.util.create_handler(cfg)
@@ -54,13 +58,14 @@ def test_model(model_dir, num_trials=1, output_dir=None, reward_fn_ext=None, ter
     )
 
     rewards = np.empty(num_trials)
+    dynamics_model.load(model_dir)
     for trial in range(num_trials):
         obs = env.reset()
         agent.reset()
         done = False
         total_reward = 0.0
         steps_trial = 0
-
+        if render: env.render()
         while not done:
 
             next_obs, reward, done, _ = mbrl.util.common.step_env_and_add_to_buffer(
@@ -70,16 +75,63 @@ def test_model(model_dir, num_trials=1, output_dir=None, reward_fn_ext=None, ter
             if use_external_reward:
                 
                 act = torch.tensor(replay_buffer.get_all().astuple()[1][replay_buffer.cur_idx-1])
-                reward = reward_fn(act.unsqueeze(0), torch.tensor(next_obs).unsqueeze(0))
+                reward = np.squeeze(reward_fn(act.unsqueeze(0), torch.tensor(next_obs).unsqueeze(0)).numpy())
 
             obs = next_obs
             total_reward += reward
             steps_trial += 1
+            if render: env.render()
             
-        print(f"Trial: {trial}, Reward: {total_reward}")
+        print(f"\t Trial: {trial}, Reward: {total_reward}")
         rewards[trial] = total_reward
-    
+    if render:
+        input("Press Enter to stop simulation")
+        env.close()
     return rewards
+
+def test_multiple_seeds(result_dir, num_trials, seeds, rew_fn=None, term_fn=None):
+    """
+    Tests multiple seeds of the same model and environment. The different models
+    must be found in "result_dir/seed_x" folders, where x corresponds to the input seeds.
+    """
+
+    results = np.zeros((len(seeds), num_trials))
+    for it, seed in enumerate(seeds):
+        print(f"Seed {seed}")
+        model_dir = result_dir + f"seed_{seed}"
+
+        results[it, :] = test_model(model_dir, num_trials, rew_fn, term_fn)
+
+    return results
+
+def test_check_points(result_dir, num_trials, seeds, checkpoints = None, rew_fn=None, term_fn=None):
+
+    """
+    Tests performance of model checkpoints and potentially multiple seeds. Models must be found in
+    "results_dir/seed_x/check_points/
+    """
+
+    if checkpoints is None:
+        print("No checkpoints given, testing final model")
+        return test_multiple_seeds(result_dir, num_trials, seeds, rew_fn, term_fn)
+
+    result_dict = {}
+    for checkpoint in checkpoints:
+        results = np.zeros((len(seeds), num_trials))
+        print(f"Checkpoint {checkpoint}")
+        for it, seed in enumerate(seeds):
+            model_dir = result_dir + f"seed_{seed}/"
+            
+            if checkpoint != "final":
+                model_dir += f"check_points/{checkpoint}"
+
+            results[it, :] = test_model(model_dir, num_trials, rew_fn, term_fn, using_checkpoint=checkpoint!="final")
+
+        result_dict[str(checkpoint)] = results
+
+    return result_dict
+
+
 
 def halfcheetah_desired_velocity(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
     assert len(next_obs.shape) == len(act.shape) == 2
@@ -88,36 +140,49 @@ def halfcheetah_desired_velocity(act: torch.Tensor, next_obs: torch.Tensor) -> t
     reward_run = 10*torch.exp(-0.3*torch.abs((next_obs[:, 0] - 8)))
     return (reward_run + reward_ctrl).view(-1, 1)
 
+def halfcheetah_backwards(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
+    assert len(next_obs.shape) == len(act.shape) == 2
+
+    reward_ctrl = -0.1 * act.square().sum(dim=1)
+    reward_run = -1*next_obs[:, 0]
+    return (reward_run + reward_ctrl).view(-1, 1)
+
+def walker_backwards(act: torch.Tensor, next_obs: torch.Tensor) -> torch.Tensor:
+    assert len(next_obs.shape) == len(act.shape) == 2
+
+    vel = next_obs[:,8]
+    
+    alive_reward = 1.0
+    reward_run = -vel
+    act_cost = 1e-3 * torch.sum(act ** 2, axis = 1)
+
+    reward = reward_run + alive_reward - act_cost
+
+    return reward.view(-1,1)
+
 if __name__ == "__main__":
 
-    cheetah_dirs = {
-        "pets": "/home/jaykay/Robotic-mbrl/remote_copy/EE/pets_comparison/pets_halfcheetah/2022.03.18/165809",
-        "random": "/home/jaykay/Robotic-mbrl/remote_copy/EE/cheetah_random_uncertainty/pets_halfcheetah/2022.03.22/174906",
-        "policy": "/home/jaykay/Robotic-mbrl/remote_copy/EE/cheetah_policy_unc/pets_halfcheetah/2022.03.22/175027"
-    }
-    
-    reacher_dirs = {
-        "pets": "/home/jaykay/Robotic-mbrl/remote_copy/EE/pets_comparison/pets_reacher/2022.03.28/103539",
-        "random": "/home/jaykay/Robotic-mbrl/remote_copy/EE/reacher_random_unc/pets_reacher/2022.03.25/172453",
-        "policy": "/home/jaykay/Robotic-mbrl/remote_copy/EE/reacher_policy_unc/pets_reacher/2022.03.28/103733"
-    }
 
-    dirs = {
-        "reacher": reacher_dirs,
-        "cheetah": cheetah_dirs
-    }
+    results_dir = "/test_results/"
+    exps = ["pets","random_uncertainty", "policy_uncertainty"]
+    env = "reacher"
 
-    env_key = "cheetah"
-    filename = f"{env_key}_desired_vel"
-    num_trials = 5
-    print(f"----- Running {env_key} env ------")
-
+    # filename = f"checkpoints_{env}"
+    filename = f"{env}_test"
+    num_trials = 1
+    print(f"----- Running {env} env ------")
 
     rewards = {}
     outdir = "model_testing"
-    for key in dirs[env_key].keys():
-        print(f"Testing {key} model")
-        reward = test_model(dirs[env_key][key], num_trials=num_trials, output_dir=outdir, reward_fn_ext=halfcheetah_desired_velocity)
-        rewards[key] = reward
-    
-        np.savez(f"model_testing/{filename}.npz", **rewards)
+    for exp in exps:
+        print(f"Testing {exp} model(s)")
+        reward = test_model(results_dir + env + f"/{exp}/seed_0", 
+            num_trials=num_trials,
+            render=True,
+            # reward_fn_ext=halfcheetah_backwards,
+            # reward_fn_ext=walker_backwards,
+            # reward_fn_ext=halfcheetah_desired_velocity
+        )
+        rewards[exp] = reward
+
+        # np.savez(f"model_testing/{filename}.npz", **rewards)
